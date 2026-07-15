@@ -6,11 +6,9 @@ set -euo pipefail
 API=${MNEME_URL:-http://localhost:8787}
 j() { curl -sS -H 'Content-Type: application/json' "$@"; }
 
-echo "── 1. write memories via CLI"
-pnpm --filter @mneme/cli start remember semantic "User lives in Vancouver" --type semantic 2>/dev/null || \
-  j -X POST "$API/v1/memories" -d '{"type":"semantic","content":"User lives in Vancouver","tags":["location"]}'
-pnpm --filter @mneme/cli start remember procedural "Prefer concise bullet answers" 2>/dev/null || \
-  j -X POST "$API/v1/memories" -d '{"type":"procedural","content":"Prefer concise bullet answers","tags":["style"],"importance":0.9}'
+echo "── 1. write memories"
+j -X POST "$API/v1/memories" -d '{"type":"semantic","content":"User lives in Vancouver","tags":["location"]}'
+j -X POST "$API/v1/memories" -d '{"type":"procedural","content":"Prefer concise bullet answers","tags":["style"],"importance":0.9}'
 
 echo "── 2. retrieve preferences"
 j -X POST "$API/v1/memories/retrieve" -d '{"query":"How should you answer me?","limit":3}' | python3 -m json.tool 2>/dev/null || \
