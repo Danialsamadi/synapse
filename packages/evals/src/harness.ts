@@ -30,6 +30,7 @@ export async function runEvals(k = 5): Promise<EvalSummary> {
       userId: "local",
       limit: k,
       ...(c.tags ? { tags: c.tags } : {}),
+      ...(c.types ? { types: c.types } : {}),
     });
     const gotIds = res.memories.map((m) => m.id);
     const relevant = c.relevantIds.map((key) => ids.get(key)).filter((x): x is string => !!x);

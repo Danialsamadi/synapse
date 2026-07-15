@@ -10,6 +10,7 @@ export interface EvalCase {
     | "temporal"
     | "noise"
     | "tag_filter"
+    | "type_filter"
     | "stale_fact";
   query: string;
   /** Memory ids expected in top-k when harness is fully wired. */
@@ -18,6 +19,8 @@ export interface EvalCase {
   forbiddenIds?: string[];
   /** Tags passed as retrieve filter (tag_filter family). */
   tags?: string[];
+  /** Types passed as retrieve filter (type_filter family). */
+  types?: ("episodic" | "semantic" | "procedural" | "working")[];
   notes: string;
 }
 
@@ -252,5 +255,23 @@ export const GOLDEN_CASES: EvalCase[] = [
     relevantIds: ["mem_ep_conference"],
     forbiddenIds: ["mem_ep_noise_movie"],
     notes: "Work tag isolation for conference.",
+  },
+  {
+    id: "type-01",
+    family: "type_filter",
+    query: "user information",
+    types: ["semantic"],
+    relevantIds: ["mem_sem_vancouver"],
+    forbiddenIds: ["mem_ep_move"],
+    notes: "Type filter: only semantic memories returned.",
+  },
+  {
+    id: "type-02",
+    family: "type_filter",
+    query: "recent events",
+    types: ["episodic"],
+    relevantIds: ["mem_ep_march_plan"],
+    forbiddenIds: ["mem_sem_typescript"],
+    notes: "Type filter: only episodic memories returned.",
   },
 ];
