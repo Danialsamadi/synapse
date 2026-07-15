@@ -10,3 +10,4 @@ coverage
 .DS_Store
 *.log
 .pnpm-store
+*.tsbuildinfo

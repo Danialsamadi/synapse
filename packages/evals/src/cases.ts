@@ -268,10 +268,10 @@ export const GOLDEN_CASES: EvalCase[] = [
   {
     id: "type-02",
     family: "type_filter",
-    query: "recent events",
+    query: "TypeScript conference I attended",
     types: ["episodic"],
-    relevantIds: ["mem_ep_march_plan"],
+    relevantIds: ["mem_ep_conference"],
     forbiddenIds: ["mem_sem_typescript"],
-    notes: "Type filter: only episodic memories returned.",
+    notes: "Without the type filter the semantic TypeScript fact would match; filter must exclude it.",
   },
 ];
