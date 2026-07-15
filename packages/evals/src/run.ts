@@ -6,4 +6,4 @@ for (const r of summary.results) {
   console.log(`| ${r.caseId} | ${r.family} | ${r.precisionAtK.toFixed(2)} | ${r.staleHit ? "STALE" : "-"} | ${r.pass ? "PASS" : "FAIL"} |`);
 }
 console.log(`\nprecision@5=${summary.precisionAtK.toFixed(3)} staleFactRate=${summary.staleFactRate.toFixed(3)} passRate=${summary.passRate.toFixed(3)}`);
-if (summary.staleFactRate > 0 || summary.passRate < 0.8) process.exit(1);
+if (summary.staleFactRate > 0 || summary.passRate < 0.95) process.exit(1);
