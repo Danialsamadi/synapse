@@ -25,6 +25,9 @@ importers:
       hono:
         specifier: ^4.6.14
         version: 4.12.30
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.10.5

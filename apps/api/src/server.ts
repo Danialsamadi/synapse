@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { z } from "zod";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import {
@@ -100,6 +101,26 @@ app.get("/v1/jobs/:id", (c) => {
   const job = repo.getJob(c.req.param("id"));
   if (!job) return c.json({ error: "not_found" }, 404);
   return c.json(job);
+});
+
+app.get("/v1/conflicts", (c) => {
+  const userId = c.req.query("userId") ?? "local";
+  const disputed = repo.list(userId, { status: "disputed" });
+  return c.json({
+    conflicts: disputed.map((m) => ({
+      memory: m,
+      contradicts: m.links.filter((l) => l.rel === "contradicts").map((l) => l.targetId),
+    })),
+  });
+});
+
+app.post("/v1/conflicts/resolve", async (c) => {
+  const body = z.object({ winnerId: z.string(), loserId: z.string() }).parse(await c.req.json());
+  const winner = repo.update(body.winnerId, { status: "active" });
+  const loser = repo.update(body.loserId, { status: "superseded" });
+  if (!winner || !loser) return c.json({ error: "not_found" }, 404);
+  repo.addLink(winner.id, loser.id, "supersedes");
+  return c.json({ winner, loser });
 });
 
 const port = Number(process.env.PORT ?? 8787);

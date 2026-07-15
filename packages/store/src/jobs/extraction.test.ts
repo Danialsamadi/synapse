@@ -13,7 +13,7 @@ describe("consolidate", () => {
     const reply = JSON.stringify({
       facts: [{ content: "User lives in Vancouver", confidence: 0.9, tags: ["location"], supportingEpisodeIds: [ep.id] }],
     });
-    const llm = new FakeLlm([reply, reply]);
+    const llm = new FakeLlm([reply, "NO", reply, "NO"]);
 
     const r1 = await consolidate(repo, embedder, llm);
     assert.equal(r1.factsAdded, 1);

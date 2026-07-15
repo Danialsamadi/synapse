@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { EmbeddingProvider } from "@mneme/embeddings";
 import type { MemoryRepository } from "../memory-repository.js";
+import { detectAndResolve, type ConflictPolicy } from "./conflicts.js";
 import type { LlmClient } from "./llm.js";
 
 export const ExtractedFactsSchema = z.object({
@@ -19,6 +20,7 @@ export interface ConsolidateResult {
   duplicates: number;
   quarantined: number;
   episodesProcessed: number;
+  conflicts: number;
 }
 
 const SYSTEM = `You extract durable semantic facts about the user from episodic memories.
@@ -30,6 +32,7 @@ export async function consolidate(
   embedder: EmbeddingProvider,
   llm: LlmClient,
   userId = "local",
+  policy: ConflictPolicy = "auto_supersede_newest",
 ): Promise<ConsolidateResult> {
   const last = repo.lastDoneJob("consolidate");
   const since = last?.createdAt ?? "";
@@ -37,7 +40,7 @@ export async function consolidate(
     .list(userId, { status: "active", type: "episodic" })
     .filter((e) => e.createdAt > since);
 
-  const result: ConsolidateResult = { factsAdded: 0, duplicates: 0, quarantined: 0, episodesProcessed: episodes.length };
+  const result: ConsolidateResult = { factsAdded: 0, duplicates: 0, quarantined: 0, episodesProcessed: episodes.length, conflicts: 0 };
   if (episodes.length === 0) return result;
 
   const user = episodes.map((e) => `[${e.id}] ${e.content}`).join("\n");
@@ -74,6 +77,8 @@ export async function consolidate(
       repo.addLink(epId, memory.id, "supports");
       repo.addLink(memory.id, epId, "derived_from");
     }
+    const conflict = await detectAndResolve(repo, embedder, llm, memory, policy);
+    result.conflicts += conflict.conflicts;
     result.factsAdded++;
   }
   return result;
