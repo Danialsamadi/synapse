@@ -79,4 +79,16 @@ describe("MemoryRepository", () => {
     repo.addAudit("export", "full export");
     repo.close();
   });
+
+  it("saves and reads embeddings", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({ userId: "local", type: "semantic", content: "Likes espresso" });
+    repo.saveEmbedding(m.id, [0.1, 0.2, 0.3], "hash-embed-v0");
+    const map = repo.getEmbeddings([m.id, "missing"]);
+    assert.deepEqual(map.get(m.id), [0.1, 0.2, 0.3]);
+    assert.equal(map.has("missing"), false);
+    repo.deleteEmbedding(m.id);
+    assert.equal(repo.getEmbeddings([m.id]).size, 0);
+    repo.close();
+  });
 });

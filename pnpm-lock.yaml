@@ -16,6 +16,9 @@ importers:
       '@mneme/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@mneme/embeddings':
+        specifier: workspace:*
+        version: link:../../packages/embeddings
       '@mneme/store':
         specifier: workspace:*
         version: link:../../packages/store

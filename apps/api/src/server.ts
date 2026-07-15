@@ -8,6 +8,7 @@ import {
   UpdateMemoryInputSchema,
 } from "@mneme/core";
 import { MemoryRepository } from "@mneme/store";
+import { HashEmbeddingProvider } from "@mneme/embeddings";
 
 function openRepo(): MemoryRepository {
   const path =
@@ -17,6 +18,7 @@ function openRepo(): MemoryRepository {
 }
 
 const repo = openRepo();
+const embedder = new HashEmbeddingProvider();
 const app = new Hono();
 
 app.get("/health", (c) => c.json({ ok: true, service: "mneme-api" }));
@@ -26,11 +28,14 @@ app.post("/v1/memories", async (c) => {
   const inputs = Array.isArray(json)
     ? json.map((j) => CreateMemoryInputSchema.parse(j))
     : [CreateMemoryInputSchema.parse(json)];
-  const results = inputs.map((input) => {
+  const results = await Promise.all(inputs.map(async (input) => {
     const existing = repo.findActiveByContentHash(input.userId, input.type, input.content);
     if (existing) return { deduped: true as const, memory: existing };
-    return { deduped: false as const, memory: repo.create(input) };
-  });
+    const memory = repo.create(input);
+    const [vec] = await embedder.embed([memory.content]);
+    if (vec) repo.saveEmbedding(memory.id, vec, embedder.model);
+    return { deduped: false as const, memory };
+  }));
   if (!Array.isArray(json)) {
     const first = results[0]!;
     return first.deduped ? c.json({ deduped: true, ...first.memory }) : c.json(first.memory, 201);

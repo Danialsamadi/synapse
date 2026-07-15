@@ -209,6 +209,32 @@ export class MemoryRepository {
       .prepare(`INSERT INTO audit_log (action, detail, created_at) VALUES (?, ?, ?)`)
       .run(action, detail, new Date().toISOString());
   }
+
+  saveEmbedding(memoryId: string, vector: number[], model: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO embeddings (memory_id, dims, vector_json, model, updated_at)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(memory_id) DO UPDATE SET dims=excluded.dims,
+           vector_json=excluded.vector_json, model=excluded.model, updated_at=excluded.updated_at`,
+      )
+      .run(memoryId, vector.length, JSON.stringify(vector), model, new Date().toISOString());
+  }
+
+  getEmbeddings(memoryIds: string[]): Map<string, number[]> {
+    const out = new Map<string, number[]>();
+    if (memoryIds.length === 0) return out;
+    const placeholders = memoryIds.map(() => "?").join(",");
+    const rows = this.db
+      .prepare(`SELECT memory_id, vector_json FROM embeddings WHERE memory_id IN (${placeholders})`)
+      .all(...memoryIds) as Array<{ memory_id: string; vector_json: string }>;
+    for (const r of rows) out.set(r.memory_id, JSON.parse(r.vector_json) as number[]);
+    return out;
+  }
+
+  deleteEmbedding(memoryId: string): void {
+    this.db.prepare(`DELETE FROM embeddings WHERE memory_id = ?`).run(memoryId);
+  }
 }
 
 interface Row {
