@@ -11,3 +11,5 @@ coverage
 *.log
 .pnpm-store
 *.tsbuildinfo
+.claude
+.agents
