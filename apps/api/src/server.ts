@@ -7,7 +7,7 @@ import {
   RetrieveRequestSchema,
   UpdateMemoryInputSchema,
 } from "@mneme/core";
-import { MemoryRepository } from "@mneme/store";
+import { MemoryRepository, RetrievalService } from "@mneme/store";
 import { HashEmbeddingProvider } from "@mneme/embeddings";
 
 function openRepo(): MemoryRepository {
@@ -19,6 +19,7 @@ function openRepo(): MemoryRepository {
 
 const repo = openRepo();
 const embedder = new HashEmbeddingProvider();
+const retrieval = new RetrievalService(repo, embedder);
 const app = new Hono();
 
 app.get("/health", (c) => c.json({ ok: true, service: "mneme-api" }));
@@ -68,37 +69,11 @@ app.get("/v1/memories", (c) => {
   return c.json({ memories: rows });
 });
 
-/** Stub retrieve — hybrid ranking lands Week 2. Keyword contains for now. */
 app.post("/v1/memories/retrieve", async (c) => {
   const json: unknown = await c.req.json();
   const req = RetrieveRequestSchema.parse(json);
-  const all = repo.list(req.userId, { status: "active" });
-  const q = req.query.toLowerCase();
-  const scored = all
-    .filter((m) => !req.types || req.types.includes(m.type))
-    .map((m) => {
-      const hit = m.content.toLowerCase().includes(q) ? 1 : 0;
-      const tokenOverlap = q
-        .split(/\s+/)
-        .filter((t) => t.length > 2 && m.content.toLowerCase().includes(t))
-        .length;
-      const score = hit + tokenOverlap * 0.2 + m.importance * 0.1;
-      return {
-        id: m.id,
-        type: m.type,
-        content: m.content,
-        score,
-        status: m.status,
-        ...(req.includeEvidence ? { evidence: m.sourceRefs } : {}),
-      };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, req.limit);
-
-  return c.json({
-    memories: scored,
-    stats: { candidateCount: all.length, latencyMs: 0, mode: "keyword_stub" },
-  });
+  const result = await retrieval.retrieve(req);
+  return c.json(result);
 });
 
 const port = Number(process.env.PORT ?? 8787);

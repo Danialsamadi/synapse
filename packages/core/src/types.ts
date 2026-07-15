@@ -98,6 +98,8 @@ export const RetrieveRequestSchema = z.object({
   tokenBudget: z.number().int().positive().optional(),
   includeEvidence: z.boolean().optional(),
   includeDisputed: z.boolean().optional(),
+  since: z.string().optional(),
+  until: z.string().optional(),
 });
 export type RetrieveRequest = z.infer<typeof RetrieveRequestSchema>;
 

@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@mneme/core": "workspace:*",
+    "@mneme/embeddings": "workspace:*",
     "better-sqlite3": "^11.7.0"
   },
   "devDependencies": {
