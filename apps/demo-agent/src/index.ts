@@ -11,6 +11,7 @@ async function main(): Promise<void> {
   console.log("Demo agent (scripted) →", baseUrl);
 
   const created = await client.createMemory({
+    userId: "local",
     type: "procedural",
     content: "Prefer concise bullet answers with tradeoffs.",
     tags: ["style"],
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
   console.log("wrote", created.id);
 
   const hit = await client.retrieve({
+    userId: "local",
     query: "How should you answer me?",
     limit: 5,
   });

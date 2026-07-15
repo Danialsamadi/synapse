@@ -5,9 +5,11 @@ import {
   type Memory,
   type MemoryStatus,
   type MemoryType,
+  type UpdateMemoryInput,
   DEFAULT_HALF_LIFE_DAYS,
   DEFAULT_IMPORTANCE,
   CreateMemoryInputSchema,
+  UpdateMemoryInputSchema,
   newMemoryId,
 } from "@mneme/core";
 import { MIGRATION_V1 } from "./schema.js";
@@ -116,6 +118,33 @@ export class MemoryRepository {
       )
       .run(now, id);
     return result.changes > 0;
+  }
+
+  update(id: string, rawPatch: UpdateMemoryInput): Memory | null {
+    const patch = UpdateMemoryInputSchema.parse(rawPatch);
+    const existing = this.get(id);
+    if (!existing) return null;
+    const next: Memory = {
+      ...existing,
+      ...(patch.content !== undefined ? { content: patch.content } : {}),
+      ...(patch.status !== undefined ? { status: patch.status } : {}),
+      ...(patch.tags !== undefined ? { tags: patch.tags } : {}),
+      ...(patch.importance !== undefined ? { importance: patch.importance } : {}),
+      ...(patch.confidence !== undefined ? { confidence: patch.confidence } : {}),
+      ...(patch.structured !== undefined ? { structured: patch.structured } : {}),
+      ...(patch.retention !== undefined ? { retention: patch.retention } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+    const hash = contentHash(next.type, next.content);
+    this.db
+      .prepare(
+        `UPDATE memories SET status=@status, content=@content, structured_json=@structured_json,
+         importance=@importance, confidence=@confidence, tags_json=@tags_json,
+         retention_json=@retention_json, updated_at=@updated_at, content_hash=@content_hash
+         WHERE id=@id`,
+      )
+      .run({ ...toRow(next, hash), id });
+    return next;
   }
 
   /** Find active semantic with same content hash (MVP near-dedupe). */

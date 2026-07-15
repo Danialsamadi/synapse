@@ -65,7 +65,7 @@ export const MemorySchema = z.object({
 export type Memory = z.infer<typeof MemorySchema>;
 
 export const CreateMemoryInputSchema = z.object({
-  userId: z.string().min(1).default("local"),
+  userId: z.string().min(1).optional().default("local"),
   type: MemoryTypeSchema,
   content: z.string().min(1),
   structured: z.record(z.unknown()).optional(),
@@ -78,9 +78,20 @@ export const CreateMemoryInputSchema = z.object({
 });
 export type CreateMemoryInput = z.infer<typeof CreateMemoryInputSchema>;
 
+export const UpdateMemoryInputSchema = z.object({
+  content: z.string().min(1).optional(),
+  status: MemoryStatusSchema.optional(),
+  tags: z.array(z.string()).optional(),
+  importance: z.number().min(0).max(1).optional(),
+  confidence: z.number().min(0).max(1).optional(),
+  structured: z.record(z.unknown()).optional(),
+  retention: RetentionPolicySchema.optional(),
+});
+export type UpdateMemoryInput = z.infer<typeof UpdateMemoryInputSchema>;
+
 export const RetrieveRequestSchema = z.object({
   query: z.string().min(1),
-  userId: z.string().min(1).default("local"),
+  userId: z.string().min(1).optional().default("local"),
   types: z.array(MemoryTypeSchema).optional(),
   tags: z.array(z.string()).optional(),
   limit: z.number().int().positive().max(50).default(8),

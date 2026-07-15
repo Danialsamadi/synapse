@@ -6,6 +6,7 @@ describe("MemoryRepository", () => {
   it("creates and gets a memory", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const created = repo.create({
+      userId: "local",
       type: "semantic",
       content: "User lives in Toronto",
       tags: ["location"],
@@ -21,6 +22,7 @@ describe("MemoryRepository", () => {
   it("soft-deletes", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const created = repo.create({
+      userId: "local",
       type: "procedural",
       content: "Prefer concise bullets",
     });
@@ -30,9 +32,21 @@ describe("MemoryRepository", () => {
     repo.close();
   });
 
+  it("updates content, status and tags", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({ userId: "local", type: "semantic", content: "Lives in Toronto" });
+    const updated = repo.update(m.id, { status: "superseded", tags: ["location"] });
+    assert.equal(updated?.status, "superseded");
+    assert.deepEqual(updated?.tags, ["location"]);
+    assert.notEqual(updated?.updatedAt, undefined);
+    assert.equal(repo.update("nope", { status: "archived" }), null);
+    repo.close();
+  });
+
   it("dedupes active by content hash", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const a = repo.create({
+      userId: "local",
       type: "semantic",
       content: "Likes TypeScript",
     });

@@ -43,7 +43,7 @@ async function main(): Promise<void> {
           console.log(JSON.stringify({ deduped: true, memory: existing }, null, 2));
           break;
         }
-        const memory = repo.create({ type, content });
+        const memory = repo.create({ userId: "local", type, content });
         console.log(JSON.stringify(memory, null, 2));
         break;
       }

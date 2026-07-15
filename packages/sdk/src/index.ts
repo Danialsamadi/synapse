@@ -58,7 +58,7 @@ export class MnemeClient {
     const res = await fetch(`${this.baseUrl}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     });
     if (!res.ok) {
       const text = await res.text();

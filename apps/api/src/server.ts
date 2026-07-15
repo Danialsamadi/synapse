@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import {
   CreateMemoryInputSchema,
   RetrieveRequestSchema,
+  UpdateMemoryInputSchema,
 } from "@mneme/core";
 import { MemoryRepository } from "@mneme/store";
 
@@ -22,23 +23,33 @@ app.get("/health", (c) => c.json({ ok: true, service: "mneme-api" }));
 
 app.post("/v1/memories", async (c) => {
   const json: unknown = await c.req.json();
-  const input = CreateMemoryInputSchema.parse(json);
-  const existing = repo.findActiveByContentHash(
-    input.userId,
-    input.type,
-    input.content,
-  );
-  if (existing) {
-    return c.json({ deduped: true, ...existing });
+  const inputs = Array.isArray(json)
+    ? json.map((j) => CreateMemoryInputSchema.parse(j))
+    : [CreateMemoryInputSchema.parse(json)];
+  const results = inputs.map((input) => {
+    const existing = repo.findActiveByContentHash(input.userId, input.type, input.content);
+    if (existing) return { deduped: true as const, memory: existing };
+    return { deduped: false as const, memory: repo.create(input) };
+  });
+  if (!Array.isArray(json)) {
+    const first = results[0]!;
+    return first.deduped ? c.json({ deduped: true, ...first.memory }) : c.json(first.memory, 201);
   }
-  const memory = repo.create(input);
-  return c.json(memory, 201);
+  return c.json({ results }, 201);
 });
 
 app.get("/v1/memories/:id", (c) => {
   const memory = repo.get(c.req.param("id"));
   if (!memory) return c.json({ error: "not_found" }, 404);
   return c.json(memory);
+});
+
+app.patch("/v1/memories/:id", async (c) => {
+  const json: unknown = await c.req.json();
+  const patch = UpdateMemoryInputSchema.parse(json);
+  const updated = repo.update(c.req.param("id"), patch);
+  if (!updated) return c.json({ error: "not_found" }, 404);
+  return c.json(updated);
 });
 
 app.delete("/v1/memories/:id", (c) => {
