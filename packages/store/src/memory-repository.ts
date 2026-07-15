@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
   type CreateMemoryInput,
   type Memory,
+  type MemoryLink,
   type MemoryStatus,
   type MemoryType,
   type UpdateMemoryInput,
@@ -12,7 +13,7 @@ import {
   UpdateMemoryInputSchema,
   newMemoryId,
 } from "@mneme/core";
-import { MIGRATION_V1 } from "./schema.js";
+import { MIGRATION_V1, MIGRATION_V2 } from "./schema.js";
 
 export interface MemoryRepositoryOptions {
   /** Path to sqlite file, or ":memory:" for tests. */
@@ -26,6 +27,7 @@ export class MemoryRepository {
     this.db = new Database(options.path ?? ":memory:");
     this.db.pragma("journal_mode = WAL");
     this.db.exec(MIGRATION_V1);
+    this.db.exec(MIGRATION_V2);
   }
 
   close(): void {
@@ -91,7 +93,7 @@ export class MemoryRepository {
     const row = this.db
       .prepare(`SELECT * FROM memories WHERE id = ?`)
       .get(id) as Row | undefined;
-    return row ? fromRow(row) : null;
+    return row ? this.withLinks(fromRow(row)) : null;
   }
 
   list(userId: string, opts?: { status?: MemoryStatus; type?: MemoryType }): Memory[] {
@@ -107,7 +109,7 @@ export class MemoryRepository {
     }
     sql += ` ORDER BY created_at DESC`;
     const rows = this.db.prepare(sql).all(...params) as Row[];
-    return rows.map(fromRow);
+    return rows.map((r) => this.withLinks(fromRow(r)));
   }
 
   softDelete(id: string): boolean {
@@ -162,6 +164,50 @@ export class MemoryRepository {
       )
       .get(userId, type, hash) as Row | undefined;
     return row ? fromRow(row) : null;
+  }
+
+  private withLinks(m: Memory): Memory {
+    const allLinks = this.getLinks(m.id);
+    const links = allLinks.map((l) =>
+      l.fromId === m.id
+        ? { rel: l.rel, targetId: l.toId }
+        : { rel: l.rel, targetId: l.fromId },
+    );
+    return { ...m, links };
+  }
+
+  addLink(fromId: string, toId: string, rel: MemoryLink["rel"]): void {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO links (from_id, to_id, rel, created_at) VALUES (?, ?, ?, ?)`,
+      )
+      .run(fromId, toId, rel, new Date().toISOString());
+  }
+
+  getLinks(memoryId: string): Array<{ fromId: string; toId: string; rel: MemoryLink["rel"] }> {
+    const rows = this.db
+      .prepare(`SELECT from_id, to_id, rel FROM links WHERE from_id = ? OR to_id = ?`)
+      .all(memoryId, memoryId) as Array<{ from_id: string; to_id: string; rel: string }>;
+    return rows.map((r) => ({ fromId: r.from_id, toId: r.to_id, rel: r.rel as MemoryLink["rel"] }));
+  }
+
+  addQuarantine(kind: string, payload: string, error: string): void {
+    this.db
+      .prepare(`INSERT INTO quarantine (kind, payload, error, created_at) VALUES (?, ?, ?, ?)`)
+      .run(kind, payload, error, new Date().toISOString());
+  }
+
+  listQuarantine(): Array<{ id: number; kind: string; payload: string; error: string; createdAt: string }> {
+    const rows = this.db.prepare(`SELECT * FROM quarantine ORDER BY id`).all() as Array<{
+      id: number; kind: string; payload: string; error: string; created_at: string;
+    }>;
+    return rows.map((r) => ({ id: r.id, kind: r.kind, payload: r.payload, error: r.error, createdAt: r.created_at }));
+  }
+
+  addAudit(action: string, detail: string): void {
+    this.db
+      .prepare(`INSERT INTO audit_log (action, detail, created_at) VALUES (?, ?, ?)`)
+      .run(action, detail, new Date().toISOString());
   }
 }
 

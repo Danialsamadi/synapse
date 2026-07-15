@@ -44,3 +44,31 @@ CREATE TABLE IF NOT EXISTS jobs (
   updated_at TEXT NOT NULL
 );
 `;
+
+export const MIGRATION_V2 = `
+CREATE TABLE IF NOT EXISTS links (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_id TEXT NOT NULL,
+  to_id TEXT NOT NULL,
+  rel TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  UNIQUE(from_id, to_id, rel)
+);
+CREATE INDEX IF NOT EXISTS idx_links_from ON links(from_id);
+CREATE INDEX IF NOT EXISTS idx_links_to ON links(to_id);
+
+CREATE TABLE IF NOT EXISTS quarantine (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  error TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  action TEXT NOT NULL,
+  detail TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+`;
