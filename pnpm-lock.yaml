@@ -126,6 +126,12 @@ importers:
       '@mneme/core':
         specifier: workspace:*
         version: link:../core
+      '@mneme/embeddings':
+        specifier: workspace:*
+        version: link:../embeddings
+      '@mneme/store':
+        specifier: workspace:*
+        version: link:../store
     devDependencies:
       '@types/node':
         specifier: ^22.10.5
