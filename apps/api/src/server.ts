@@ -7,7 +7,7 @@ import {
   RetrieveRequestSchema,
   UpdateMemoryInputSchema,
 } from "@mneme/core";
-import { MemoryRepository, RetrievalService } from "@mneme/store";
+import { MemoryRepository, RetrievalService, consolidate, OpenAiCompatLlm } from "@mneme/store";
 import type { JobRow } from "@mneme/store";
 import { HashEmbeddingProvider } from "@mneme/embeddings";
 
@@ -21,6 +21,7 @@ function openRepo(): MemoryRepository {
 const repo = openRepo();
 const embedder = new HashEmbeddingProvider();
 const retrieval = new RetrievalService(repo, embedder);
+const llm = new OpenAiCompatLlm();
 const app = new Hono();
 
 app.get("/health", (c) => c.json({ ok: true, service: "mneme-api" }));
@@ -77,7 +78,9 @@ app.post("/v1/memories/retrieve", async (c) => {
   return c.json(result);
 });
 
-const jobHandlers: Record<string, (repo: MemoryRepository) => Promise<unknown>> = {};
+const jobHandlers: Record<string, (repo: MemoryRepository) => Promise<unknown>> = {
+  consolidate: (r) => consolidate(r, embedder, llm),
+};
 
 app.post("/v1/jobs/:kind", async (c) => {
   const kind = c.req.param("kind");
