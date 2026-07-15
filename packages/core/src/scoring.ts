@@ -1,4 +1,4 @@
-import type { Memory, MemoryType } from "./types.js";
+import type { Memory } from "./types.js";
 
 export interface RankWeights {
   vector: number;
@@ -112,14 +112,4 @@ export function packByTokenBudget<T extends { content: string }>(
     used += cost;
   }
   return out;
-}
-
-export function defaultHalfLife(type: MemoryType): number {
-  const map: Record<MemoryType, number> = {
-    episodic: 30,
-    semantic: 180,
-    procedural: 365,
-    working: 0.5,
-  };
-  return map[type];
 }
