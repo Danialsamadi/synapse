@@ -7,6 +7,7 @@ import {
   CreateMemoryInputSchema,
   RetrieveRequestSchema,
   UpdateMemoryInputSchema,
+  MemoryTypeSchema,
 } from "@mneme/core";
 import { MemoryRepository, RetrievalService, consolidate, OpenAiCompatLlm, runDecay } from "@mneme/store";
 import type { JobRow } from "@mneme/store";
@@ -24,6 +25,16 @@ const embedder = new HashEmbeddingProvider();
 const retrieval = new RetrievalService(repo, embedder);
 const llm = new OpenAiCompatLlm();
 const app = new Hono();
+
+const token = process.env.MNEME_TOKEN;
+if (token) {
+  app.use("/v1/*", async (c, next) => {
+    if (c.req.header("Authorization") !== `Bearer ${token}`) {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    await next();
+  });
+}
 
 app.get("/health", (c) => c.json({ ok: true, service: "mneme-api" }));
 
@@ -82,6 +93,7 @@ app.post("/v1/memories/retrieve", async (c) => {
 const jobHandlers: Record<string, (repo: MemoryRepository) => Promise<unknown>> = {
   consolidate: (r) => consolidate(r, embedder, llm),
   decay: (r) => Promise.resolve(runDecay(r)),
+  purge: (r) => Promise.resolve(r.purgeDeleted()),
 };
 
 app.post("/v1/jobs/:kind", async (c) => {
@@ -122,6 +134,31 @@ app.post("/v1/conflicts/resolve", async (c) => {
   if (!winner || !loser) return c.json({ error: "not_found" }, 404);
   repo.addLink(winner.id, loser.id, "supersedes");
   return c.json({ winner, loser });
+});
+
+app.get("/v1/export", (c) => {
+  const userId = c.req.query("userId") ?? "local";
+  const dump = repo.exportAll(userId);
+  repo.addAudit("export", `userId=${userId} count=${dump.memories.length}`);
+  return c.json(dump);
+});
+
+app.post("/v1/purge", async (c) => {
+  const body = z
+    .object({
+      userId: z.string().default("local"),
+      tags: z.array(z.string()).optional(),
+      types: z.array(MemoryTypeSchema).optional(),
+      before: z.string().optional(),
+    })
+    .parse(await c.req.json());
+  const softDeleted =
+    body.tags || body.types || body.before
+      ? repo.softDeleteWhere(body.userId, { ...(body.tags ? { tags: body.tags } : {}), ...(body.types ? { types: body.types } : {}), ...(body.before ? { before: body.before } : {}) })
+      : 0;
+  const { purged } = repo.purgeDeleted();
+  repo.addAudit("purge", `softDeleted=${softDeleted} purged=${purged}`);
+  return c.json({ softDeleted, purged });
 });
 
 const port = Number(process.env.PORT ?? 8787);

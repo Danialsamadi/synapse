@@ -286,6 +286,39 @@ export class MemoryRepository {
       .get(kind) as { id: string } | undefined;
     return r ? this.getJob(r.id) : null;
   }
+
+  softDeleteWhere(
+    userId: string,
+    filter: { tags?: string[]; types?: MemoryType[]; before?: string },
+  ): number {
+    const all = this.list(userId).filter((m) => m.status !== "deleted");
+    const targets = all.filter((m) => {
+      if (filter.types && !filter.types.includes(m.type)) return false;
+      if (filter.tags && !filter.tags.some((t) => m.tags.includes(t))) return false;
+      if (filter.before && m.createdAt >= filter.before) return false;
+      return filter.tags !== undefined || filter.types !== undefined || filter.before !== undefined;
+    });
+    for (const m of targets) this.softDelete(m.id);
+    return targets.length;
+  }
+
+  purgeDeleted(): { purged: number } {
+    const rows = this.db.prepare(`SELECT id FROM memories WHERE status = 'deleted'`).all() as Array<{ id: string }>;
+    const purge = this.db.transaction((ids: string[]) => {
+      for (const id of ids) {
+        this.db.prepare(`DELETE FROM embeddings WHERE memory_id = ?`).run(id);
+        this.db.prepare(`DELETE FROM links WHERE from_id = ? OR to_id = ?`).run(id, id);
+        this.db.prepare(`DELETE FROM memories WHERE id = ?`).run(id);
+      }
+    });
+    purge(rows.map((r) => r.id));
+    return { purged: rows.length };
+  }
+
+  exportAll(userId: string): { memories: Memory[]; exportedAt: string } {
+    const memories = this.list(userId).filter((m) => m.status !== "deleted");
+    return { memories, exportedAt: new Date().toISOString() };
+  }
 }
 
 interface Row {
