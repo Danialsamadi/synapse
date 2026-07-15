@@ -1,0 +1,12 @@
+node_modules
+dist
+*.db
+*.db-journal
+.env
+.env.*
+!.env.example
+coverage
+.turbo
+.DS_Store
+*.log
+.pnpm-store

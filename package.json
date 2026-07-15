@@ -1,0 +1,19 @@
+{
+  "name": "mneme",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Mneme — Personal AI Memory OS",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "dev:api": "pnpm --filter @mneme/api dev",
+    "dev:worker": "pnpm --filter @mneme/worker dev",
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm -r run test",
+    "eval": "pnpm --filter @mneme/evals test",
+    "cli": "pnpm --filter @mneme/cli start"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
