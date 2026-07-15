@@ -8,7 +8,7 @@ import {
   RetrieveRequestSchema,
   UpdateMemoryInputSchema,
 } from "@mneme/core";
-import { MemoryRepository, RetrievalService, consolidate, OpenAiCompatLlm } from "@mneme/store";
+import { MemoryRepository, RetrievalService, consolidate, OpenAiCompatLlm, runDecay } from "@mneme/store";
 import type { JobRow } from "@mneme/store";
 import { HashEmbeddingProvider } from "@mneme/embeddings";
 
@@ -81,6 +81,7 @@ app.post("/v1/memories/retrieve", async (c) => {
 
 const jobHandlers: Record<string, (repo: MemoryRepository) => Promise<unknown>> = {
   consolidate: (r) => consolidate(r, embedder, llm),
+  decay: (r) => Promise.resolve(runDecay(r)),
 };
 
 app.post("/v1/jobs/:kind", async (c) => {

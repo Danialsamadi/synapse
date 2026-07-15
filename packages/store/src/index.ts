@@ -5,3 +5,4 @@ export { RetrievalService } from "./retrieval.js";
 export * from "./jobs/extraction.js";
 export * from "./jobs/llm.js";
 export * from "./jobs/conflicts.js";
+export * from "./jobs/decay.js";
