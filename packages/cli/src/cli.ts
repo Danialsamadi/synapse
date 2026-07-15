@@ -18,7 +18,7 @@ Usage:
   mneme remember <type> <content...>
   mneme list [--type <type>]
   mneme get <id>
-  mneme query <text...>
+  mneme query <text...> [--type <type>] [--tags <tag1,tag2>]
   mneme export
   mneme delete <id>
 
@@ -76,10 +76,33 @@ async function main(): Promise<void> {
         break;
       }
       case "query": {
-        const q = rest.join(" ").trim();
+        const flags = rest.filter((a) => a.startsWith("--"));
+        const positional = rest.filter((a) => !a.startsWith("--"));
+        const q = positional.join(" ").trim();
         if (!q) usage();
+
+        let type: ReturnType<typeof MemoryTypeSchema.parse> | undefined;
+        const typeIdx = flags.indexOf("--type");
+        const typeVal = typeIdx >= 0 ? flags[typeIdx + 1] : undefined;
+        if (typeVal) {
+          type = MemoryTypeSchema.parse(typeVal);
+        }
+
+        let tags: string[] | undefined;
+        const tagsIdx = flags.indexOf("--tags");
+        const tagsVal = tagsIdx >= 0 ? flags[tagsIdx + 1] : undefined;
+        if (tagsVal) {
+          tags = tagsVal.split(",");
+        }
+
         const svc = new RetrievalService(repo, new HashEmbeddingProvider());
-        const res = await svc.retrieve({ query: q, userId: "local", limit: 8 });
+        const res = await svc.retrieve({
+          query: q,
+          userId: "local",
+          limit: 8,
+          ...(type ? { types: [type] } : {}),
+          ...(tags ? { tags } : {}),
+        });
         console.log(JSON.stringify(res, null, 2));
         break;
       }
