@@ -15,10 +15,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test src/**/*.test.ts"
+    "test": "node --import tsx --test 'src/**/*.test.ts'"
   },
   "dependencies": {
-    "@mneme/core": "workspace:*"
+    "@mneme/core": "workspace:*",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

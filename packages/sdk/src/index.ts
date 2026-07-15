@@ -10,6 +10,16 @@ import {
 export type { CreateMemoryInput, Memory, RetrieveRequest, RetrievedMemory };
 export { CreateMemoryInputSchema, RetrieveRequestSchema };
 
+export {
+  MEMORY_TOOLS,
+  MemoryWriteToolInputSchema,
+  MemoryRetrieveToolInputSchema,
+  executeMemoryTool,
+  type MemoryWriteToolInput,
+  type MemoryRetrieveToolInput,
+  type ToolDefinition,
+} from "./tools.js";
+
 export interface MnemeClientOptions {
   baseUrl: string;
   token?: string;

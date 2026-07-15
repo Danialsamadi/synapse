@@ -148,6 +148,9 @@ importers:
       '@mneme/core':
         specifier: workspace:*
         version: link:../core
+      zod:
+        specifier: ^3.24.1
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.10.5
