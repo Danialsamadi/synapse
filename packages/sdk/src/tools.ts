@@ -15,6 +15,7 @@ export const MemoryRetrieveToolInputSchema = z.object({
   query: z.string().min(1),
   limit: z.number().int().positive().max(20).optional(),
   types: z.array(z.enum(["episodic", "semantic", "procedural", "working"])).optional(),
+  tags: z.array(z.string()).optional(),
 });
 export type MemoryRetrieveToolInput = z.infer<typeof MemoryRetrieveToolInputSchema>;
 
@@ -51,6 +52,7 @@ export const MEMORY_TOOLS: ToolDefinition[] = [
         query: { type: "string" },
         limit: { type: "number" },
         types: { type: "array", items: { type: "string", enum: ["episodic", "semantic", "procedural", "working"] } },
+        tags: { type: "array", items: { type: "string" } },
       },
       required: ["query"],
     },
@@ -83,6 +85,7 @@ export async function executeMemoryTool(
       userId: "local",
       limit: input.limit ?? 8,
       ...(input.types ? { types: input.types } : {}),
+      ...(input.tags ? { tags: input.tags } : {}),
     });
   }
   throw new Error(`Unknown memory tool: ${name}`);
