@@ -20,6 +20,16 @@ export interface MemoryRepositoryOptions {
   path?: string;
 }
 
+export interface JobRow {
+  id: string;
+  kind: string;
+  status: "pending" | "running" | "done" | "failed";
+  payload: string | null;
+  result: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export class MemoryRepository {
   private readonly db: Database.Database;
 
@@ -234,6 +244,47 @@ export class MemoryRepository {
 
   deleteEmbedding(memoryId: string): void {
     this.db.prepare(`DELETE FROM embeddings WHERE memory_id = ?`).run(memoryId);
+  }
+
+  createJob(kind: string, payload?: unknown): JobRow {
+    const now = new Date().toISOString();
+    const row: JobRow = {
+      id: newMemoryId(),
+      kind,
+      status: "pending",
+      payload: payload === undefined ? null : JSON.stringify(payload),
+      result: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.db
+      .prepare(
+        `INSERT INTO jobs (id, kind, status, payload_json, result_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(row.id, row.kind, row.status, row.payload, row.result, row.createdAt, row.updatedAt);
+    return row;
+  }
+
+  updateJob(id: string, status: JobRow["status"], result?: unknown): void {
+    this.db
+      .prepare(`UPDATE jobs SET status = ?, result_json = ?, updated_at = ? WHERE id = ?`)
+      .run(status, result === undefined ? null : JSON.stringify(result), new Date().toISOString(), id);
+  }
+
+  getJob(id: string): JobRow | null {
+    const r = this.db.prepare(`SELECT * FROM jobs WHERE id = ?`).get(id) as
+      | { id: string; kind: string; status: string; payload_json: string | null; result_json: string | null; created_at: string; updated_at: string }
+      | undefined;
+    if (!r) return null;
+    return { id: r.id, kind: r.kind, status: r.status as JobRow["status"], payload: r.payload_json, result: r.result_json, createdAt: r.created_at, updatedAt: r.updated_at };
+  }
+
+  lastDoneJob(kind: string): JobRow | null {
+    const r = this.db
+      .prepare(`SELECT id FROM jobs WHERE kind = ? AND status = 'done' ORDER BY updated_at DESC LIMIT 1`)
+      .get(kind) as { id: string } | undefined;
+    return r ? this.getJob(r.id) : null;
   }
 }
 

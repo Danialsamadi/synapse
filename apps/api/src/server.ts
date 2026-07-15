@@ -8,6 +8,7 @@ import {
   UpdateMemoryInputSchema,
 } from "@mneme/core";
 import { MemoryRepository, RetrievalService } from "@mneme/store";
+import type { JobRow } from "@mneme/store";
 import { HashEmbeddingProvider } from "@mneme/embeddings";
 
 function openRepo(): MemoryRepository {
@@ -74,6 +75,28 @@ app.post("/v1/memories/retrieve", async (c) => {
   const req = RetrieveRequestSchema.parse(json);
   const result = await retrieval.retrieve(req);
   return c.json(result);
+});
+
+const jobHandlers: Record<string, (repo: MemoryRepository) => Promise<unknown>> = {};
+
+app.post("/v1/jobs/:kind", async (c) => {
+  const kind = c.req.param("kind");
+  const handler = jobHandlers[kind];
+  if (!handler) return c.json({ error: "unknown_job" }, 404);
+  const job = repo.createJob(kind);
+  repo.updateJob(job.id, "running");
+  try {
+    repo.updateJob(job.id, "done", await handler(repo));
+  } catch (err) {
+    repo.updateJob(job.id, "failed", { error: String(err) });
+  }
+  return c.json(repo.getJob(job.id), 201);
+});
+
+app.get("/v1/jobs/:id", (c) => {
+  const job = repo.getJob(c.req.param("id"));
+  if (!job) return c.json({ error: "not_found" }, 404);
+  return c.json(job);
 });
 
 const port = Number(process.env.PORT ?? 8787);

@@ -91,4 +91,15 @@ describe("MemoryRepository", () => {
     assert.equal(repo.getEmbeddings([m.id]).size, 0);
     repo.close();
   });
+
+  it("creates, updates and queries jobs", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const job = repo.createJob("consolidate", { since: null });
+    assert.equal(job.status, "pending");
+    repo.updateJob(job.id, "done", { factsAdded: 2 });
+    const got = repo.getJob(job.id);
+    assert.equal(got?.status, "done");
+    assert.equal(repo.lastDoneJob("consolidate")?.id, job.id);
+    repo.close();
+  });
 });
