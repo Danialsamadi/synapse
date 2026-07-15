@@ -35,7 +35,7 @@ packages/
   store/           SQLite repository, retrieval, jobs
   embeddings/      provider interface + hash embeddings
   sdk/             MnemeClient + tool definitions
-  evals/           30 golden cases + lifecycle test
+  evals/           32 golden cases + lifecycle test
   cli/             mneme CLI
 scripts/
   demo.sh          north-star demo script
@@ -50,14 +50,14 @@ score = 0.40·vector + 0.20·keyword + 0.15·importance
       + 0.10·recency - 0.10·decay - 0.05·conflict
 ```
 
-Weights defined in `DEFAULT_RANK_WEIGHTS` (`packages/core/src/scoring.ts`). Retrieval is non-LLM (PRD N-10); LLM is used only in consolidation and conflict detection.
+Weights defined in `DEFAULT_RANK_WEIGHTS` (`packages/core/src/scoring.ts`). Retrieval is 100% non-LLM; the LLM is used only in consolidation and conflict detection.
 
 ## Quick start
 
 ```bash
 pnpm install
 pnpm test                              # all tests
-pnpm eval                              # eval harness (30 cases)
+pnpm eval                              # eval harness (32 cases)
 pnpm dev:api                           # http://localhost:8787
 
 # CLI
@@ -76,10 +76,10 @@ open http://localhost:8787/inspector
 
 | Metric | Value |
 |--------|-------|
-| Golden cases | 30 |
-| Precision@5 | 0.983 |
+| Golden cases | 32 |
+| Precision@5 | 0.984 |
 | Stale-fact rate | 0.000 |
-| Pass rate | 0.967 |
+| Pass rate | 0.969 |
 
 Lifecycle test proves the full pipeline: episode → extraction → conflict detection → supersession → retrieval excludes stale fact.
 
@@ -112,18 +112,3 @@ open http://localhost:8787/inspector
 # Export
 curl -s http://localhost:8787/v1/export | python3 -m json.tool
 ```
-
-## Teach mode
-
-```bash
-open lessons/index.html
-```
-
-| # | Lesson | Week |
-|---|--------|------|
-| 01 | [Memory is not a log](./lessons/01-memory-is-not-a-log.html) | 1 |
-| 02 | [Typed store & contracts](./lessons/02-typed-store-and-contracts.html) | 1 |
-| 03 | [Hybrid retrieval & budgets](./lessons/03-hybrid-retrieval-and-budgets.html) | 2 |
-| 04 | [Agent tools & SDK](./lessons/04-agent-tools-and-sdk.html) | 2 |
-| 05 | [Consolidation, conflict, forgetting](./lessons/05-consolidation-conflict-forgetting.html) | 3 |
-| 06 | [Privacy, evals, portfolio](./lessons/06-privacy-evals-portfolio.html) | 4 |
