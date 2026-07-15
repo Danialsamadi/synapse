@@ -1,8 +1,10 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { z } from "zod";
+import { readFileSync } from "node:fs";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   CreateMemoryInputSchema,
   RetrieveRequestSchema,
@@ -25,6 +27,12 @@ const embedder = new HashEmbeddingProvider();
 const retrieval = new RetrievalService(repo, embedder);
 const llm = new OpenAiCompatLlm();
 const app = new Hono();
+
+const inspectorHtml = readFileSync(
+  fileURLToPath(new URL("./inspector.html", import.meta.url)),
+  "utf8",
+);
+app.get("/inspector", (c) => c.html(inspectorHtml));
 
 const token = process.env.MNEME_TOKEN;
 if (token) {
@@ -134,6 +142,14 @@ app.post("/v1/conflicts/resolve", async (c) => {
   if (!winner || !loser) return c.json({ error: "not_found" }, 404);
   repo.addLink(winner.id, loser.id, "supersedes");
   return c.json({ winner, loser });
+});
+
+app.get("/v1/about-me", (c) => {
+  const userId = c.req.query("userId") ?? "local";
+  const semantic = repo.list(userId, { status: "active", type: "semantic" });
+  const procedural = repo.list(userId, { status: "active", type: "procedural" });
+  const disputedCount = repo.list(userId, { status: "disputed" }).length;
+  return c.json({ semantic, procedural, disputedCount });
 });
 
 app.get("/v1/export", (c) => {

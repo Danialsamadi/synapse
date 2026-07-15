@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><title>Mneme Inspector</title>
+<style>
+  body{font:14px/1.5 system-ui;margin:2rem auto;max-width:900px;padding:0 1rem}
+  input,select,button{font:inherit;padding:.35rem .6rem;margin-right:.4rem}
+  table{border-collapse:collapse;width:100%;margin-top:1rem}
+  td,th{border:1px solid #ddd;padding:.4rem .6rem;text-align:left;vertical-align:top}
+  .disputed{background:#fff3cd}.superseded{color:#999;text-decoration:line-through}
+  .tag{background:#eef;border-radius:3px;padding:0 .3rem;margin-right:.2rem;font-size:12px}
+</style>
+</head>
+<body>
+<h1>Mneme Inspector</h1>
+<div>
+  <input id="q" placeholder="search memories…" size="40">
+  <select id="type"><option value="">all types</option><option>episodic</option><option>semantic</option><option>procedural</option><option>working</option></select>
+  <button onclick="search()">Search</button>
+  <button onclick="listAll()">List all</button>
+  <button onclick="aboutMe()">About me</button>
+  <button onclick="conflicts()">Conflicts</button>
+</div>
+<div id="out"></div>
+<script>
+const api = (p, opt) => fetch(p, opt).then(r => r.json());
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function row(m, extra = "") {
+  const tags = (m.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+  return `<tr class="${m.status}"><td>${m.type}</td><td>${esc(m.content)} ${tags}</td>
+    <td>${m.status}</td><td>${(m.score??"").toString().slice(0,5)}</td>
+    <td><button onclick="editMem('${m.id}')">edit</button>
+        <button onclick="delMem('${m.id}')">delete</button>${extra}</td></tr>`;
+}
+function table(rows) {
+  document.getElementById("out").innerHTML =
+    `<table><tr><th>type</th><th>content</th><th>status</th><th>score</th><th></th></tr>${rows.join("")}</table>`;
+}
+async function search() {
+  const q = document.getElementById("q").value || "*";
+  const type = document.getElementById("type").value;
+  const body = { query: q, limit: 20, includeDisputed: true, ...(type ? { types: [type] } : {}) };
+  const res = await api("/v1/memories/retrieve", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
+  table(res.memories.map((m)=>row(m)));
+}
+async function listAll() {
+  const res = await api("/v1/memories");
+  table(res.memories.map((m)=>row(m)));
+}
+async function aboutMe() {
+  const res = await api("/v1/about-me");
+  const rows = [...res.semantic, ...res.procedural].map((m)=>row(m));
+  document.getElementById("out").innerHTML =
+    `<p><b>${res.semantic.length}</b> facts, <b>${res.procedural.length}</b> preferences, <b>${res.disputedCount}</b> disputed.</p>`;
+  document.getElementById("out").insertAdjacentHTML("beforeend",
+    `<table><tr><th>type</th><th>content</th><th>status</th><th></th><th></th></tr>${rows.join("")}</table>`);
+}
+async function conflicts() {
+  const res = await api("/v1/conflicts");
+  const rows = res.conflicts.map(({memory:m, contradicts}) =>
+    row(m, contradicts.map((id)=>`<button onclick="resolve('${m.id}','${id}')">keep this, supersede ${id.slice(0,12)}…</button>`).join("")));
+  table(rows);
+}
+async function resolve(winnerId, loserId) {
+  await api("/v1/conflicts/resolve", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ winnerId, loserId }) });
+  conflicts();
+}
+async function editMem(id) {
+  const content = prompt("New content:");
+  if (!content) return;
+  await api(`/v1/memories/${id}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ content }) });
+  listAll();
+}
+async function delMem(id) {
+  await api(`/v1/memories/${id}`, { method:"DELETE" });
+  listAll();
+}
+listAll();
+</script>
+</body>
+</html>
