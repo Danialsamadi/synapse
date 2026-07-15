@@ -49,4 +49,27 @@ describe("RetrievalService", () => {
     assert.equal(res.memories.length, 1);
     repo.close();
   });
+
+  it("positive tag filter returns only matching tags", async () => {
+    const { repo, svc, add } = await seeded();
+    const style = await add("procedural", "Always cite sources", ["style"]);
+    const work = await add("semantic", "User works at a startup", ["work"]);
+    await add("episodic", "User watched a movie", ["personal"]);
+    const res = await svc.retrieve({ query: "user preferences", userId: "local", limit: 10, tags: ["style"] });
+    assert.ok(res.memories.some((m) => m.id === style.id));
+    assert.ok(!res.memories.some((m) => m.id === work.id));
+    assert.ok(res.memories.length >= 1);
+    repo.close();
+  });
+
+  it("types filter returns only matching types", async () => {
+    const { repo, svc, add } = await seeded();
+    const sem = await add("semantic", "User lives in Vancouver", ["location"]);
+    await add("procedural", "Always cite sources", ["style"]);
+    await add("episodic", "User went to a conference", ["work"]);
+    const res = await svc.retrieve({ query: "user info", userId: "local", limit: 10, types: ["semantic"] });
+    assert.equal(res.memories.length, 1);
+    assert.equal(res.memories[0]?.id, sem.id);
+    repo.close();
+  });
 });
