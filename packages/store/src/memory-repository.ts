@@ -177,12 +177,11 @@ export class MemoryRepository {
   }
 
   private withLinks(m: Memory): Memory {
-    const allLinks = this.getLinks(m.id);
-    const links = allLinks.map((l) =>
-      l.fromId === m.id
-        ? { rel: l.rel, targetId: l.toId }
-        : { rel: l.rel, targetId: l.fromId },
-    );
+    // Only outgoing links: rel direction is from → to; reversing incoming
+    // links would misstate asymmetric rels like `supersedes`.
+    const links = this.getLinks(m.id)
+      .filter((l) => l.fromId === m.id)
+      .map((l) => ({ rel: l.rel, targetId: l.toId }));
     return { ...m, links };
   }
 

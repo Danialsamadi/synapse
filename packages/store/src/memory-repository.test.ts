@@ -68,7 +68,9 @@ describe("MemoryRepository", () => {
     const links = repo.getLinks(fact.id);
     assert.equal(links.length, 1);
     assert.equal(links[0]?.rel, "supports");
-    assert.equal(repo.get(fact.id)?.links[0]?.targetId, ep.id);
+    // memory.links only carries outgoing links (rel direction is from → to)
+    assert.equal(repo.get(ep.id)?.links[0]?.targetId, fact.id);
+    assert.equal(repo.get(fact.id)?.links.length, 0);
     repo.close();
   });
 
