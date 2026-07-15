@@ -7,8 +7,8 @@ import { RetrievalService } from "./retrieval.js";
 describe("export and purge", () => {
   it("export excludes deleted; purge removes rows, vectors, links", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const keep = repo.create({ type: "semantic", content: "keep me" });
-    const kill = repo.create({ type: "semantic", content: "delete me", tags: ["work"] });
+    const keep = repo.create({ userId: "local", type: "semantic", content: "keep me" });
+    const kill = repo.create({ userId: "local", type: "semantic", content: "delete me", tags: ["work"] });
     repo.saveEmbedding(kill.id, [1, 0], "hash-embed-v0");
     repo.addLink(keep.id, kill.id, "related_to");
 
@@ -29,7 +29,7 @@ describe("purge completeness", () => {
   it("retrieve returns nothing after full purge", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const embedder = new HashEmbeddingProvider();
-    const m = repo.create({ type: "semantic", content: "User lives in Vancouver" });
+    const m = repo.create({ userId: "local", type: "semantic", content: "User lives in Vancouver" });
     const [v] = await embedder.embed([m.content]);
     if (v) repo.saveEmbedding(m.id, v, embedder.model);
 

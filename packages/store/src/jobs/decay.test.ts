@@ -6,12 +6,12 @@ import { runDecay } from "./decay.js";
 describe("decay job", () => {
   it("archives decayed low-utility episodes, keeps pinned and fresh", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const old = repo.create({ type: "episodic", content: "ancient lunch chat", importance: 0.2, decayHalfLifeDays: 30 });
+    const old = repo.create({ userId: "local", type: "episodic", content: "ancient lunch chat", importance: 0.2, decayHalfLifeDays: 30 });
     const pinned = repo.create({
-      type: "episodic", content: "pinned old event", importance: 0.2, decayHalfLifeDays: 30,
+      userId: "local", type: "episodic", content: "pinned old event", importance: 0.2, decayHalfLifeDays: 30,
       retention: { mode: "pinned", pinReason: "user" },
     });
-    const fresh = repo.create({ type: "episodic", content: "yesterday's event", importance: 0.2 });
+    const fresh = repo.create({ userId: "local", type: "episodic", content: "yesterday's event", importance: 0.2 });
     const future = new Date(Date.now() + 200 * 24 * 3600 * 1000);
     const r = runDecay(repo, "local", future);
     assert.equal(repo.get(old.id)?.status, "archived");
@@ -23,7 +23,7 @@ describe("decay job", () => {
   it("expires ttl memories past expiresAt", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const w = repo.create({
-      type: "working", content: "current task: draft PRD",
+      userId: "local", type: "working", content: "current task: draft PRD",
       retention: { mode: "ttl", expiresAt: new Date(Date.now() - 1000).toISOString() },
     });
     const r = runDecay(repo);

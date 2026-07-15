@@ -9,7 +9,7 @@ describe("consolidate", () => {
   it("extracts a valid semantic fact, links it, dedupes on rerun", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const embedder = new HashEmbeddingProvider();
-    const ep = repo.create({ type: "episodic", content: "I moved to Vancouver last month" });
+    const ep = repo.create({ userId: "local", type: "episodic", content: "I moved to Vancouver last month" });
     const reply = JSON.stringify({
       facts: [{ content: "User lives in Vancouver", confidence: 0.9, tags: ["location"], supportingEpisodeIds: [ep.id] }],
     });
@@ -30,7 +30,7 @@ describe("consolidate", () => {
   it("quarantines invalid LLM output instead of writing memory", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const embedder = new HashEmbeddingProvider();
-    repo.create({ type: "episodic", content: "some event" });
+    repo.create({ userId: "local", type: "episodic", content: "some event" });
     const llm = new FakeLlm(["not json at all"]);
     const r = await consolidate(repo, embedder, llm);
     assert.equal(r.quarantined, 1);

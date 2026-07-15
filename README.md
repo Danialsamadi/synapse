@@ -2,47 +2,118 @@
 
 > Chat history is a log. Mneme is a brain.
 
-TypeScript monorepo for a **long-term personal memory layer**: typed memories, hybrid retrieve (Week 2), consolidation & conflict (Week 3), export/purge & inspector (Week 4).
+Mneme is a **local-first personal memory operating system** that gives AI agents durable, typed long-term memory. It extracts semantic facts from episodic conversations, detects and resolves conflicts, decays stale information, and retrieves relevant memories with a hybrid scoring pipeline — all running on local SQLite with full user control over export and purge.
 
-| Doc | Purpose |
-|-----|---------|
-| [`PRD.md`](./PRD.md) | Product requirements |
-| [`BUILD-PLAN.md`](./BUILD-PLAN.md) | 4-week day-by-day plan |
-| [`MISSION.md`](./MISSION.md) | Why you’re learning/building this |
-| [`lessons/`](./lessons/) | Interactive teach lessons (open in browser) |
-| [`RESOURCES.md`](./RESOURCES.md) | High-trust sources |
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Agent / CLI / SDK                                      │
+│    ├── memory_write  (episodic / semantic / procedural)  │
+│    └── memory_retrieve  (hybrid scoring + token budget)  │
+├─────────────────────────────────────────────────────────┤
+│  API  (Hono · /v1/memories · /v1/jobs · /v1/conflicts) │
+├─────────────────────────────────────────────────────────┤
+│  Store  (better-sqlite3 · WAL · migrations V1/V2)       │
+│    ├── MemoryRepository  (CRUD, links, quarantine, jobs) │
+│    ├── RetrievalService  (hybrid ranker)                 │
+│    └── Jobs: consolidate · conflict · decay · purge      │
+├─────────────────────────────────────────────────────────┤
+│  Embeddings  (provider interface · HashEmbeddingProvider)│
+│  LLM  (OpenAI-compatible · FakeLlm for tests)           │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Monorepo layout
+
+```
+apps/
+  api/             HTTP API (Hono) + inspector page
+  demo-agent/      tool-calling demo agent
+packages/
+  core/            Zod schemas, scoring helpers, ID generation
+  store/           SQLite repository, retrieval, jobs
+  embeddings/      provider interface + hash embeddings
+  sdk/             MnemeClient + tool definitions
+  evals/           30 golden cases + lifecycle test
+  cli/             mneme CLI
+scripts/
+  demo.sh          north-star demo script
+```
+
+## Retrieval scoring
+
+Hybrid score per candidate memory:
+
+```
+score = 0.40·vector + 0.20·keyword + 0.15·importance
+      + 0.10·recency - 0.10·decay - 0.05·conflict
+```
+
+Weights defined in `DEFAULT_RANK_WEIGHTS` (`packages/core/src/scoring.ts`). Retrieval is non-LLM (PRD N-10); LLM is used only in consolidation and conflict detection.
 
 ## Quick start
 
 ```bash
-cd memory-os
 pnpm install
-pnpm test
+pnpm test                              # all tests
+pnpm eval                              # eval harness (30 cases)
+pnpm dev:api                           # http://localhost:8787
+
+# CLI
 pnpm --filter @mneme/cli start remember semantic "User prefers TypeScript"
-pnpm --filter @mneme/cli start list
-pnpm dev:api   # http://localhost:8787/health
+pnpm --filter @mneme/cli start query "TypeScript preference"
+pnpm --filter @mneme/cli start export
+
+# Inspector
+open http://localhost:8787/inspector
+
+# North-star demo (requires API running)
+./scripts/demo.sh
 ```
 
-## Workspace layout
+## Evals
 
-```
-apps/
-  api/           HTTP API (Hono)
-  worker/        consolidation jobs (stub → Week 3)
-  demo-agent/    thin consumer
-  inspector/     UI (placeholder → Week 4)
-packages/
-  core/          Zod schemas, scoring helpers
-  store/         SQLite repository
-  embeddings/    provider interface + hash embed
-  sdk/           MnemeClient
-  evals/         golden cases
-  cli/           mneme CLI
+| Metric | Value |
+|--------|-------|
+| Golden cases | 30 |
+| Precision@5 | 0.983 |
+| Stale-fact rate | 0.000 |
+| Pass rate | 0.967 |
+
+Lifecycle test proves the full pipeline: episode → extraction → conflict detection → supersession → retrieval excludes stale fact.
+
+## Privacy
+
+- **Export:** `GET /v1/export` — full JSON dump of all non-deleted memories
+- **Purge:** `POST /v1/purge` — hard-deletes rows, embeddings, and links
+- **Auth:** set `MNEME_TOKEN` env var to require Bearer auth on all `/v1/*` routes
+- **Audit:** export and purge actions are logged to the audit table
+
+## 2-minute reviewer script
+
+```bash
+pnpm install && pnpm test && pnpm eval
+pnpm dev:api &
+sleep 1
+
+# Write and retrieve
+curl -s -X POST http://localhost:8787/v1/memories \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"semantic","content":"User lives in Vancouver","tags":["location"]}'
+
+curl -s -X POST http://localhost:8787/v1/memories/retrieve \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"Where do I live?","limit":3}' | python3 -m json.tool
+
+# Inspector
+open http://localhost:8787/inspector
+
+# Export
+curl -s http://localhost:8787/v1/export | python3 -m json.tool
 ```
 
 ## Teach mode
-
-This directory is also a **standing teaching workspace**.
 
 ```bash
 open lessons/index.html
@@ -56,11 +127,3 @@ open lessons/index.html
 | 04 | [Agent tools & SDK](./lessons/04-agent-tools-and-sdk.html) | 2 |
 | 05 | [Consolidation, conflict, forgetting](./lessons/05-consolidation-conflict-forgetting.html) | 3 |
 | 06 | [Privacy, evals, portfolio](./lessons/06-privacy-evals-portfolio.html) | 4 |
-
-Reference cards: [glossary](./reference/glossary.html) · [score formula](./reference/score-formula.html) · [architecture](./reference/architecture.html)
-
-Every lesson has **top nav + prev/next**. After quizzes, log exit tickets in `learning-records/`.
-
-## Status
-
-Scaffold + Lesson 01 ready. Hybrid retrieve, worker, and full eval harness follow `BUILD-PLAN.md`.

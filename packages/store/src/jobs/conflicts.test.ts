@@ -9,7 +9,7 @@ async function seed() {
   const repo = new MemoryRepository({ path: ":memory:" });
   const embedder = new HashEmbeddingProvider();
   const mk = async (content: string) => {
-    const m = repo.create({ type: "semantic", content, tags: ["location"] });
+    const m = repo.create({ userId: "local", type: "semantic", content, tags: ["location"] });
     const [v] = await embedder.embed([content]);
     if (v) repo.saveEmbedding(m.id, v, embedder.model);
     return m;

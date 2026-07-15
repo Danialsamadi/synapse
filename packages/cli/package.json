@@ -14,7 +14,8 @@
   },
   "dependencies": {
     "@mneme/core": "workspace:*",
-    "@mneme/store": "workspace:*"
+    "@mneme/store": "workspace:*",
+    "@mneme/embeddings": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

@@ -10,13 +10,13 @@ describe("lifecycle: episode → extraction → conflict → supersession → re
     const retrieval = new RetrievalService(repo, embedder);
 
     const toronto = repo.create({
-      type: "semantic", content: "User lives in Toronto", tags: ["location"],
+      userId: "local", type: "semantic", content: "User lives in Toronto", tags: ["location"],
     });
     const [tv] = await embedder.embed([toronto.content]);
     if (tv) repo.saveEmbedding(toronto.id, tv, embedder.model);
 
     const episode = repo.create({
-      type: "episodic", content: "User said they moved from Toronto to Vancouver last month",
+      userId: "local", type: "episodic", content: "User said they moved from Toronto to Vancouver last month",
     });
     const [ev] = await embedder.embed([episode.content]);
     if (ev) repo.saveEmbedding(episode.id, ev, embedder.model);

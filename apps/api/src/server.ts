@@ -34,6 +34,20 @@ const inspectorHtml = readFileSync(
 );
 app.get("/inspector", (c) => c.html(inspectorHtml));
 
+app.use("*", async (c, next) => {
+  const start = performance.now();
+  await next();
+  console.log(
+    JSON.stringify({
+      evt: "http",
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      ms: Math.round(performance.now() - start),
+    }),
+  );
+});
+
 const token = process.env.MNEME_TOKEN;
 if (token) {
   app.use("/v1/*", async (c, next) => {

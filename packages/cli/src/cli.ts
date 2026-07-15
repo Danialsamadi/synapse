@@ -2,7 +2,8 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { MemoryTypeSchema } from "@mneme/core";
-import { MemoryRepository } from "@mneme/store";
+import { MemoryRepository, RetrievalService } from "@mneme/store";
+import { HashEmbeddingProvider } from "@mneme/embeddings";
 
 function dbPath(): string {
   const p = process.env.MNEME_DB ?? resolve(process.cwd(), ".mneme", "mneme.db");
@@ -17,6 +18,8 @@ Usage:
   mneme remember <type> <content...>
   mneme list [--type <type>]
   mneme get <id>
+  mneme query <text...>
+  mneme export
   mneme delete <id>
 
 Types: episodic | semantic | procedural | working
@@ -70,6 +73,18 @@ async function main(): Promise<void> {
         const id = rest[0];
         if (!id) usage();
         console.log(JSON.stringify({ ok: repo.softDelete(id) }));
+        break;
+      }
+      case "query": {
+        const q = rest.join(" ").trim();
+        if (!q) usage();
+        const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+        const res = await svc.retrieve({ query: q, userId: "local", limit: 8 });
+        console.log(JSON.stringify(res, null, 2));
+        break;
+      }
+      case "export": {
+        console.log(JSON.stringify(repo.exportAll("local"), null, 2));
         break;
       }
       default:
