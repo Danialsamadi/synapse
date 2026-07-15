@@ -177,11 +177,14 @@ export class MemoryRepository {
   }
 
   private withLinks(m: Memory): Memory {
-    // Only outgoing links: rel direction is from → to; reversing incoming
-    // links would misstate asymmetric rels like `supersedes`.
-    const links = this.getLinks(m.id)
-      .filter((l) => l.fromId === m.id)
-      .map((l) => ({ rel: l.rel, targetId: l.toId }));
+    // Rel direction is from → to. Incoming links only apply for symmetric
+    // rels; reversing asymmetric ones like `supersedes` would misstate them.
+    const links = this.getLinks(m.id).flatMap((l) => {
+      if (l.fromId === m.id) return [{ rel: l.rel, targetId: l.toId }];
+      if (l.rel === "contradicts" || l.rel === "related_to")
+        return [{ rel: l.rel, targetId: l.fromId }];
+      return [];
+    });
     return { ...m, links };
   }
 

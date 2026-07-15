@@ -68,9 +68,12 @@ describe("MemoryRepository", () => {
     const links = repo.getLinks(fact.id);
     assert.equal(links.length, 1);
     assert.equal(links[0]?.rel, "supports");
-    // memory.links only carries outgoing links (rel direction is from → to)
+    // memory.links carries outgoing links; incoming only for symmetric rels
     assert.equal(repo.get(ep.id)?.links[0]?.targetId, fact.id);
     assert.equal(repo.get(fact.id)?.links.length, 0);
+    const rival = repo.create({ userId: "local", type: "semantic", content: "Lives in Toronto" });
+    repo.addLink(rival.id, fact.id, "contradicts");
+    assert.deepEqual(repo.get(fact.id)?.links, [{ rel: "contradicts", targetId: rival.id }]);
     repo.close();
   });
 
