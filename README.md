@@ -10,23 +10,45 @@ Mneme is a **local-first personal memory operating system** that gives AI agents
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph Agents["Agents & Surfaces"]
+        MCP["MCP clients<br/>Claude Code · Claude Desktop · Cursor · OpenCode"]
+        SDK["SDK adapters<br/>Anthropic · OpenAI-compatible routers"]
+        CLI["CLI<br/>mneme remember / query / export"]
+        UI["Inspector UI"]
+    end
+
+    subgraph Tools["Memory tools (Zod-validated, importance-capped)"]
+        W["memory_write"]
+        R["memory_retrieve"]
+    end
+
+    API["HTTP API (Hono)<br/>/v1/memories · /v1/jobs · /v1/conflicts · /v1/export · /v1/purge"]
+
+    subgraph Store["Store (better-sqlite3 · WAL)"]
+        REPO["MemoryRepository<br/>CRUD · links · quarantine · audit · jobs"]
+        RET["RetrievalService<br/>vector + keyword + importance + recency − decay − conflict"]
+        JOBS["Jobs<br/>consolidate · conflict · decay · purge"]
+    end
+
+    subgraph Providers["Providers (env-configured factories)"]
+        EMB["Embeddings<br/>hash (offline) · OpenAI-compatible"]
+        LLM["LLM<br/>OpenAI-compatible · FakeLlm for tests"]
+    end
+
+    MCP --> W & R
+    SDK --> W & R
+    W & R --> API
+    CLI --> Store
+    UI --> API
+    API --> Store
+    RET --> EMB
+    JOBS --> LLM
+    JOBS --> EMB
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Agent / CLI / SDK                                      │
-│    ├── memory_write  (episodic / semantic / procedural)  │
-│    └── memory_retrieve  (hybrid scoring + token budget)  │
-├─────────────────────────────────────────────────────────┤
-│  API  (Hono · /v1/memories · /v1/jobs · /v1/conflicts) │
-├─────────────────────────────────────────────────────────┤
-│  Store  (better-sqlite3 · WAL · migrations V1/V2)       │
-│    ├── MemoryRepository  (CRUD, links, quarantine, jobs) │
-│    ├── RetrievalService  (hybrid ranker)                 │
-│    └── Jobs: consolidate · conflict · decay · purge      │
-├─────────────────────────────────────────────────────────┤
-│  Embeddings  (provider interface · HashEmbeddingProvider)│
-│  LLM  (OpenAI-compatible · FakeLlm for tests)           │
-└─────────────────────────────────────────────────────────┘
-```
+
+The MCP server talks to the store directly (like the CLI); the SDK adapters route through the HTTP API. All write paths share the same guards.
 
 ## Monorepo layout
 
@@ -77,15 +99,19 @@ open http://localhost:8787/inspector
 ./scripts/demo.sh
 ```
 
-## Use from any AI provider
+## Use from any AI agent
 
-**MCP (Claude Code, Claude Desktop, Cursor — verified live with Claude Code):**
+Mneme exposes `memory_write` / `memory_retrieve` over MCP. Any MCP-capable agent can use it — verified live with Claude Code (write in one session, recall in a fresh one).
+
+**Claude Code:**
 
 ```bash
 claude mcp add --scope user mneme -- pnpm --dir /path/to/memory-os mcp
 ```
 
-Or in any MCP client config:
+Then verify inside a new session with `/mcp` — mneme must show as connected. Tool calls appear as permission prompts named `mneme - memory_write` / `mneme - memory_retrieve`.
+
+**Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows), then restart the app:
 
 ```json
 {
@@ -98,7 +124,22 @@ Or in any MCP client config:
 }
 ```
 
-The server stores to `~/.mneme/mneme.db` by default (override with `MNEME_DB`). Verified end-to-end: one agent session wrote a fact via `memory_write`, a fresh session recalled it via `memory_retrieve`. Tip: if your host agent has its own memory feature (Claude Code does), add "Use the mneme MCP tools for storing and recalling user memories" to your `CLAUDE.md`.
+**Cursor** — Settings → MCP → Add server, or add the same `mcpServers` block to `~/.cursor/mcp.json`.
+
+**OpenCode:**
+
+```bash
+opencode mcp add mneme -- pnpm --dir /path/to/memory-os mcp
+```
+
+**Any other MCP client** — it's a standard stdio server: command `pnpm`, args `["--dir", "/path/to/memory-os", "mcp"]`.
+
+The server stores to `~/.mneme/mneme.db` by default; set `MNEME_DB` in the server's `env` to share one database with the API/CLI/Inspector.
+
+**Testing tips (learned the hard way):**
+- Confirm the tool is actually connected in the session before judging results (`/mcp` in Claude Code, `opencode mcp list`).
+- Hosts with their own memory feature (Claude Code) may prefer it for passive "remember X" phrasing — name the tool ("use the mneme memory_write tool") or add `Use the mneme MCP tools for storing and recalling user memories.` to your `CLAUDE.md` / agent rules.
+- Independent proof a write landed: `sqlite3 ~/.mneme/mneme.db "SELECT type, content FROM memories WHERE status='active'"`.
 
 **Anthropic / OpenAI / any OpenAI-compatible router** (OpenRouter, Groq, Ollama, Mistral):
 
