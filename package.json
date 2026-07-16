@@ -10,7 +10,8 @@
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
     "eval": "pnpm --filter @mneme/evals test",
-    "cli": "pnpm --filter @mneme/cli start"
+    "cli": "pnpm --filter @mneme/cli start",
+    "mcp": "pnpm --filter @mneme/mcp-server start"
   },
   "engines": {
     "node": ">=20"

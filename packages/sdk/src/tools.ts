@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { MnemeClient } from "./index.js";
 
+export const TOOL_MAX_IMPORTANCE = 0.8;
+
 export const MemoryWriteToolInputSchema = z.object({
   type: z.enum(["episodic", "semantic", "procedural"]),
   content: z.string().min(1),
@@ -35,7 +37,7 @@ export const MEMORY_TOOLS: ToolDefinition[] = [
       properties: {
         type: { type: "string", enum: ["episodic", "semantic", "procedural"] },
         content: { type: "string" },
-        importance: { type: "number", minimum: 0, maximum: 1 },
+        importance: { type: "number", minimum: 0, maximum: TOOL_MAX_IMPORTANCE },
         tags: { type: "array", items: { type: "string" } },
         structured: { type: "object" },
         sourceMessageId: { type: "string" },
@@ -70,7 +72,10 @@ export async function executeMemoryTool(
       userId: "local",
       type: input.type,
       content: input.content,
-      ...(input.importance !== undefined ? { importance: input.importance } : {}),
+      // ponytail: tool writes are a prompt-injection surface — cap influence
+      ...(input.importance !== undefined
+        ? { importance: Math.min(input.importance, TOOL_MAX_IMPORTANCE) }
+        : {}),
       ...(input.tags ? { tags: input.tags } : {}),
       ...(input.structured ? { structured: input.structured } : {}),
       ...(input.sourceMessageId

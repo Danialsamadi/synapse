@@ -30,11 +30,12 @@ Mneme is a **local-first personal memory operating system** that gives AI agents
 apps/
   api/             HTTP API (Hono) + inspector page
   demo-agent/      tool-calling demo agent
+  mcp-server/      stdio MCP server (Claude Code/Desktop/Cursor)
 packages/
   core/            Zod schemas, scoring helpers, ID generation
   store/           SQLite repository, retrieval, jobs
-  embeddings/      provider interface + hash embeddings
-  sdk/             MnemeClient + tool definitions
+  embeddings/      provider interface + hash/OpenAI embeddings
+  sdk/             MnemeClient + tool definitions + provider adapters
   evals/           32 golden cases + lifecycle test
   cli/             mneme CLI
 scripts/

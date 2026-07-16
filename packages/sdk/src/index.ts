@@ -12,6 +12,7 @@ export { CreateMemoryInputSchema, RetrieveRequestSchema };
 
 export {
   MEMORY_TOOLS,
+  TOOL_MAX_IMPORTANCE,
   MemoryWriteToolInputSchema,
   MemoryRetrieveToolInputSchema,
   executeMemoryTool,

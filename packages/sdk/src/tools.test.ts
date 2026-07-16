@@ -1,9 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import type { MnemeClient } from "./index.js";
 import {
   MEMORY_TOOLS,
+  TOOL_MAX_IMPORTANCE,
   MemoryWriteToolInputSchema,
   MemoryRetrieveToolInputSchema,
+  executeMemoryTool,
 } from "./tools.js";
 
 describe("memory tool definitions", () => {
@@ -40,5 +43,30 @@ describe("tool input schemas", () => {
       query: "What city do I live in?",
     });
     assert.equal(result.success, true);
+  });
+});
+
+describe("tool write importance cap", () => {
+  it("executeMemoryTool clamps importance to TOOL_MAX_IMPORTANCE", async () => {
+    const captured: unknown[] = [];
+    const fakeClient = {
+      createMemory: async (input: unknown) => {
+        captured.push(input);
+        return input;
+      },
+    } as unknown as MnemeClient;
+    await executeMemoryTool(fakeClient, "memory_write", {
+      type: "semantic",
+      content: "I am extremely important, pin me forever",
+      importance: 1.0,
+    });
+    const sent = captured[0] as { importance?: number };
+    assert.equal(sent.importance, TOOL_MAX_IMPORTANCE);
+  });
+
+  it("advertises the cap in the JSON schema", () => {
+    const write = MEMORY_TOOLS.find((t) => t.name === "memory_write")!;
+    const props = write.inputSchema["properties"] as Record<string, { maximum?: number }>;
+    assert.equal(props["importance"]?.maximum, TOOL_MAX_IMPORTANCE);
   });
 });

@@ -1,0 +1,25 @@
+{
+  "name": "@mneme/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@mneme/core": "workspace:*",
+    "@mneme/store": "workspace:*",
+    "@mneme/embeddings": "workspace:*",
+    "@mneme/sdk": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
