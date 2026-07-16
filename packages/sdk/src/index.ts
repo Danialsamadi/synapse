@@ -20,6 +20,15 @@ export {
   type ToolDefinition,
 } from "./tools.js";
 
+export {
+  toAnthropicTools,
+  toOpenAiTools,
+  parseToolCall,
+  type AnthropicTool,
+  type OpenAiTool,
+  type NormalizedToolCall,
+} from "./adapters.js";
+
 export interface MnemeClientOptions {
   baseUrl: string;
   token?: string;
