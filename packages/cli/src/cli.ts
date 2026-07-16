@@ -2,8 +2,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { MemoryTypeSchema } from "@mneme/core";
-import { MemoryRepository, RetrievalService } from "@mneme/store";
-import { HashEmbeddingProvider } from "@mneme/embeddings";
+import { MemoryRepository, RetrievalService, createEmbedder } from "@mneme/store";
 
 function dbPath(): string {
   const p = process.env.MNEME_DB ?? resolve(process.cwd(), ".mneme", "mneme.db");
@@ -95,7 +94,7 @@ async function main(): Promise<void> {
           tags = tagsVal.split(",");
         }
 
-        const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+        const svc = new RetrievalService(repo, createEmbedder());
         const res = await svc.retrieve({
           query: q,
           userId: "local",

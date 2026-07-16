@@ -11,9 +11,8 @@ import {
   UpdateMemoryInputSchema,
   MemoryTypeSchema,
 } from "@mneme/core";
-import { MemoryRepository, RetrievalService, consolidate, OpenAiCompatLlm, runDecay } from "@mneme/store";
+import { MemoryRepository, RetrievalService, consolidate, createEmbedder, createLlm, runDecay } from "@mneme/store";
 import type { JobRow } from "@mneme/store";
-import { HashEmbeddingProvider } from "@mneme/embeddings";
 
 function openRepo(): MemoryRepository {
   const path =
@@ -23,9 +22,9 @@ function openRepo(): MemoryRepository {
 }
 
 const repo = openRepo();
-const embedder = new HashEmbeddingProvider();
+const embedder = createEmbedder();
 const retrieval = new RetrievalService(repo, embedder);
-const llm = new OpenAiCompatLlm();
+const llm = createLlm();
 const app = new Hono();
 
 const inspectorHtml = readFileSync(
