@@ -223,6 +223,16 @@ export class MemoryRepository {
   }
 
   saveEmbedding(memoryId: string, vector: number[], model: string): void {
+    if (vector.length === 0) throw new Error("Embedding vector must not be empty");
+    const existing = this.db
+      .prepare("SELECT dims FROM embeddings WHERE memory_id = ?")
+      .get(memoryId) as { dims: number } | undefined;
+    if (existing && existing.dims !== vector.length) {
+      throw new Error(
+        `Embedding dimension mismatch: existing=${existing.dims} got=${vector.length}. ` +
+          `Delete the old embedding or use a consistent model.`,
+      );
+    }
     this.db
       .prepare(
         `INSERT INTO embeddings (memory_id, dims, vector_json, model, updated_at)

@@ -97,6 +97,16 @@ describe("MemoryRepository", () => {
     repo.close();
   });
 
+  it("rejects embedding with mismatched dimensions", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({ userId: "local", type: "semantic", content: "test" });
+    repo.saveEmbedding(m.id, [1, 0, 0], "model-a");
+    assert.throws(() => {
+      repo.saveEmbedding(m.id, [1, 0, 0, 0], "model-b");
+    }, /dimension mismatch/);
+    repo.close();
+  });
+
   it("creates, updates and queries jobs", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const job = repo.createJob("consolidate", { since: null });
