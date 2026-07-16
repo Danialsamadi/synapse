@@ -1,3 +1,5 @@
+![Mneme](memory-os.png)
+
 # Mneme — Personal AI Memory OS
 
 [![CI](https://github.com/Danialsamadi/memory-os/actions/workflows/ci.yml/badge.svg)](https://github.com/Danialsamadi/memory-os/actions/workflows/ci.yml)
