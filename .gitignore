@@ -13,3 +13,8 @@ coverage
 *.tsbuildinfo
 .claude
 .agents
+.mneme/
+*.db-shm
+*.db-wal
+docs
+docs/

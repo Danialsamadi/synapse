@@ -1,5 +1,9 @@
 # Mneme — Personal AI Memory OS
 
+[![CI](https://github.com/Danialsamadi/memory-os/actions/workflows/ci.yml/badge.svg)](https://github.com/Danialsamadi/memory-os/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+
 > Chat history is a log. Mneme is a brain.
 
 Mneme is a **local-first personal memory operating system** that gives AI agents durable, typed long-term memory. It extracts semantic facts from episodic conversations, detects and resolves conflicts, decays stale information, and retrieves relevant memories with a hybrid scoring pipeline — all running on local SQLite with full user control over export and purge.
@@ -73,6 +77,43 @@ open http://localhost:8787/inspector
 ./scripts/demo.sh
 ```
 
+## Use from any AI provider
+
+**MCP (Claude Code, Claude Desktop, Cursor — verified live with Claude Code):**
+
+```bash
+claude mcp add --scope user mneme -- pnpm --dir /path/to/memory-os mcp
+```
+
+Or in any MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "mneme": {
+      "command": "pnpm",
+      "args": ["--dir", "/path/to/memory-os", "mcp"]
+    }
+  }
+}
+```
+
+The server stores to `~/.mneme/mneme.db` by default (override with `MNEME_DB`). Verified end-to-end: one agent session wrote a fact via `memory_write`, a fresh session recalled it via `memory_retrieve`. Tip: if your host agent has its own memory feature (Claude Code does), add "Use the mneme MCP tools for storing and recalling user memories" to your `CLAUDE.md`.
+
+**Anthropic / OpenAI / any OpenAI-compatible router** (OpenRouter, Groq, Ollama, Mistral):
+
+```ts
+import { toAnthropicTools, toOpenAiTools, parseToolCall, executeMemoryTool, MnemeClient } from "@mneme/sdk";
+
+const client = new MnemeClient({ baseUrl: "http://localhost:8787" });
+// pass toAnthropicTools() to the Messages API, or toOpenAiTools() to Chat Completions
+// on any tool call the model returns:
+const { name, args } = parseToolCall(providerToolCall);
+const result = await executeMemoryTool(client, name, args);
+```
+
+Every provider path shares the same guards: Zod validation on all inputs and agent-write importance capped at 0.8 (prompt-injection protection).
+
 ## Evals
 
 | Metric | Value |
@@ -113,3 +154,7 @@ open http://localhost:8787/inspector
 # Export
 curl -s http://localhost:8787/v1/export | python3 -m json.tool
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).

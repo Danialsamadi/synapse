@@ -2,7 +2,7 @@
   "name": "mneme",
   "private": true,
   "version": "0.1.0",
-  "description": "Mneme — Personal AI Memory OS",
+  "description": "Mneme \u2014 Personal AI Memory OS",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "pnpm -r run build",
@@ -15,5 +15,10 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Danialsamadi/memory-os.git"
   }
 }
