@@ -5,7 +5,7 @@ export const EmbeddingConfigSchema = z.object({
   baseUrl: z.string().url().default("https://api.openai.com/v1"),
   apiKey: z.string().default(""),
   model: z.string().default("text-embedding-3-small"),
-  dimensions: z.number().int().positive().default(1536),
+  dimensions: z.coerce.number().int().positive().default(1536),
 });
 export type EmbeddingConfig = z.infer<typeof EmbeddingConfigSchema>;
 
@@ -13,7 +13,7 @@ export const LlmConfigSchema = z.object({
   baseUrl: z.string().url().default("https://api.openai.com/v1"),
   apiKey: z.string().default(""),
   model: z.string().default("gpt-4o-mini"),
-  temperature: z.number().min(0).max(2).default(0),
+  temperature: z.coerce.number().min(0).max(2).default(0),
 });
 export type LlmConfig = z.infer<typeof LlmConfigSchema>;
 
