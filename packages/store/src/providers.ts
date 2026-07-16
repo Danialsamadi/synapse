@@ -1,0 +1,27 @@
+import { loadEmbeddingConfig, loadLlmConfig } from "@mneme/core";
+import { HashEmbeddingProvider, OpenAiEmbeddingProvider, type EmbeddingProvider } from "@mneme/embeddings";
+import { FakeLlm, OpenAiCompatLlm, type LlmClient } from "./jobs/llm.js";
+
+export function createEmbedder(): EmbeddingProvider {
+  const cfg = loadEmbeddingConfig();
+  switch (cfg.provider) {
+    case "openai":
+      return new OpenAiEmbeddingProvider({
+        baseUrl: cfg.baseUrl,
+        apiKey: cfg.apiKey,
+        model: cfg.model,
+      });
+    case "hash":
+    default:
+      return new HashEmbeddingProvider();
+  }
+}
+
+export function createLlm(): LlmClient {
+  const cfg = loadLlmConfig();
+  return new OpenAiCompatLlm(cfg);
+}
+
+export function createFakeLlm(responses: string[]): LlmClient {
+  return new FakeLlm(responses);
+}

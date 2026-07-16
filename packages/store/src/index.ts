@@ -6,3 +6,5 @@ export * from "./jobs/extraction.js";
 export * from "./jobs/llm.js";
 export * from "./jobs/conflicts.js";
 export * from "./jobs/decay.js";
+export { createEmbedder, createLlm, createFakeLlm } from "./providers.js";
+export type { OpenAiLlmConfig } from "./jobs/llm.js";
