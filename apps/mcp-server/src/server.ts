@@ -16,7 +16,7 @@ export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
     "memory_write",
     {
       description:
-        "Store a long-term memory about the user. Use episodic for events, semantic for durable facts, procedural for preferences.",
+        "Store a long-term memory about the user. Call this whenever the user shares a durable fact about themselves (semantic), a preference or instruction about how to work with them (procedural), or a notable event (episodic) — especially when they say 'remember', 'from now on', or state personal facts.",
       inputSchema: {
         type: z.enum(["episodic", "semantic", "procedural"]),
         content: z.string().min(1),
@@ -44,7 +44,8 @@ export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
   server.registerTool(
     "memory_retrieve",
     {
-      description: "Retrieve relevant long-term memories about the user for the current query.",
+      description:
+        "Retrieve stored long-term memories about the user. Call this BEFORE answering any question about the user's preferences, facts, history, or past conversations (e.g. 'what do you know about me', 'how do I like X', or when personalizing a response) — do not answer such questions from other sources without checking here first.",
       inputSchema: {
         query: z.string().min(1),
         limit: z.number().int().positive().max(20).optional(),
