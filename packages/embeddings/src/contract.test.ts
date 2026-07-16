@@ -10,8 +10,10 @@ export function embeddingContractTests(createProvider: () => EmbeddingProvider) 
   return () => {
     it("returns vectors with consistent dimensions", async () => {
       const p = createProvider();
-      const [a] = await p.embed(["hello"]);
-      const [b] = await p.embed(["world"]);
+      const vecs = await p.embed(["hello", "world"]);
+      assert.equal(vecs.length, 2);
+      const [a, b] = vecs;
+      assert.ok(a && b, "must return vectors for each input");
       assert.equal(a.length, b.length, "dimension mismatch between calls");
       assert.ok(a.length > 0, "vector must not be empty");
     });
@@ -30,15 +32,21 @@ export function embeddingContractTests(createProvider: () => EmbeddingProvider) 
 
     it("is deterministic for same input", async () => {
       const p = createProvider();
-      const [a] = await p.embed(["test sentence"]);
-      const [b] = await p.embed(["test sentence"]);
+      const vecsA = await p.embed(["test sentence"]);
+      const vecsB = await p.embed(["test sentence"]);
+      const [a] = vecsA;
+      const [b] = vecsB;
+      assert.ok(a && b, "must return vectors");
       assert.deepEqual(a, b);
     });
 
     it("produces different vectors for different inputs", async () => {
       const p = createProvider();
-      const [a] = await p.embed(["cats are animals"]);
-      const [b] = await p.embed(["quantum computing basics"]);
+      const vecsA = await p.embed(["cats are animals"]);
+      const vecsB = await p.embed(["quantum computing basics"]);
+      const [a] = vecsA;
+      const [b] = vecsB;
+      assert.ok(a && b, "must return vectors");
       assert.notDeepEqual(a, b);
     });
   };
