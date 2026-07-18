@@ -1,0 +1,67 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { HashEmbeddingProvider } from "@mneme/embeddings";
+import { MemoryRepository, RetrievalService } from "@mneme/store";
+
+async function seeded() {
+  const repo = new MemoryRepository({ path: ":memory:" });
+  const embedder = new HashEmbeddingProvider();
+  const svc = new RetrievalService(repo, embedder);
+  const write = async (content: string, entityKey?: string) => {
+    const { memory } = repo.createWithEntitySupersede({
+      userId: "local",
+      type: "semantic" as const,
+      content,
+      ...(entityKey ? { entityKey } : {}),
+    });
+    const [v] = await embedder.embed([memory.content]);
+    if (v) repo.saveEmbedding(memory.id, v, embedder.model);
+    return memory;
+  };
+  return { repo, svc, write };
+}
+
+describe("behavioral: truth shifts over time", () => {
+  it("entity update replaces old fact at retrieval time (Acme Corp scenario)", async () => {
+    const { repo, svc, write } = await seeded();
+    await write("User works at Acme Corp as a product manager", "user.employer");
+    const current = await write("User works at Initech as an engineering lead", "user.employer");
+
+    const res = await svc.retrieve({ query: "where does the user work", userId: "local", limit: 5 });
+    const contents = res.memories.map((m) => m.content);
+    assert.ok(contents.includes(current.content), "current employer must surface");
+    assert.ok(!contents.some((c) => c.includes("Acme")), "superseded employer must not surface");
+    repo.close();
+  });
+
+  it("stale feedback disputes a memory and excludes it from default retrieval", async () => {
+    const { repo, svc, write } = await seeded();
+    const m = await write("User lives in Toronto");
+    repo.applyFeedback(m.id, "stale");
+
+    const res = await svc.retrieve({ query: "where does the user live", userId: "local", limit: 5 });
+    assert.ok(!res.memories.some((r) => r.id === m.id), "disputed memory hidden by default");
+
+    const withDisputed = await svc.retrieve({
+      query: "where does the user live", userId: "local", limit: 5, includeDisputed: true,
+    });
+    const hit = withDisputed.memories.find((r) => r.id === m.id);
+    assert.ok(hit, "disputed memory visible when explicitly requested");
+    assert.match(hit!.qualifier ?? "", /disputed/, "qualifier warns the consumer");
+    repo.close();
+  });
+
+  it("repeated helpful feedback raises confidence; repeated stale feedback floors it", async () => {
+    const { repo, write } = await seeded();
+    const good = await write("User prefers TypeScript");
+    repo.applyFeedback(good.id, "helpful");
+    repo.applyFeedback(good.id, "helpful");
+    assert.ok(repo.get(good.id)!.confidence > 0.89);
+
+    const bad = await write("User eats a keto diet");
+    repo.applyFeedback(bad.id, "stale");
+    repo.applyFeedback(bad.id, "wrong");
+    assert.ok(repo.get(bad.id)!.confidence <= 0.1);
+    repo.close();
+  });
+});
