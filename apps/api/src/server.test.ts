@@ -16,7 +16,7 @@ before(async () => {
   server = await createServer(repo, { port });
   // Get the actual port from the server
   const addr = server.address();
-  baseUrl = `http://localhost:${typeof addr === "object" ? addr.port : port}`;
+  baseUrl = `http://localhost:${addr !== null && typeof addr === "object" ? addr.port : port}`;
 });
 
 after(() => {

@@ -4,52 +4,115 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mneme Inspector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --paper: #F7F7F5; --card: #FFFFFF; --ink: #1C1D20; --mute: #63666C;
+    --faint: #9B9EA3; --line: #E5E4E0; --wash: #EFEFEC;
+    --iris: #5B5BD6; --green: #3D8A5F; --amber: #A87B14; --red: #C6544A; --slate: #4E8FA8;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1117; color: #c9d1d9; font-size: 14px; }
-  header { background: #161b22; border-bottom: 1px solid #30363d; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
-  header h1 { font-size: 16px; color: #f0f6fc; }
-  .tabs { display: flex; gap: 0; }
-  .tab-btn { background: none; border: none; color: #8b949e; padding: 8px 16px; cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; }
-  .tab-btn.active { color: #f0f6fc; border-bottom-color: #58a6ff; }
-  .tab-panel { display: none; padding: 16px 20px; }
+  body { font: 14px/1.55 var(--sans); background: var(--paper); color: var(--ink); }
+  ::selection { background: #5B5BD622; }
+  :focus-visible { outline: 2px solid var(--iris); outline-offset: 1px; border-radius: 2px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    padding: 18px 28px 0; border-bottom: 1px solid var(--line); }
+  .wordmark { font-family: "Instrument Serif", Georgia, serif; font-style: italic;
+    font-size: 24px; font-weight: 400; letter-spacing: .01em; }
+  .wordmark small { font-family: var(--mono); font-style: normal; font-size: 10px;
+    letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin-left: 10px; vertical-align: 2px; }
+  .tabs { display: flex; gap: 4px; }
+  .tab-btn { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
+    background: none; border: none; color: var(--mute); padding: 10px 14px 14px; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab-btn:hover { color: var(--ink); }
+  .tab-btn.active { color: var(--ink); border-bottom-color: var(--iris); }
+
+  .tab-panel { display: none; max-width: 960px; margin: 0 auto; padding: 22px 28px 48px; }
   .tab-panel.active { display: block; }
-  .feed-controls { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
-  .feed-controls select, .feed-controls input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 4px 8px; border-radius: 4px; }
-  .feed-controls button { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 4px 12px; border-radius: 4px; cursor: pointer; }
-  .feed-controls button:hover { background: #30363d; }
-  .feed-item { padding: 8px 12px; border-bottom: 1px solid #21262d; display: flex; gap: 8px; align-items: flex-start; }
-  .feed-item .icon { font-size: 16px; flex-shrink: 0; }
-  .feed-item .detail { flex: 1; }
-  .feed-item .time { color: #8b949e; font-size: 12px; flex-shrink: 0; }
-  .feed-item .clickable { color: #58a6ff; cursor: pointer; text-decoration: none; }
-  .feed-item .clickable:hover { text-decoration: underline; }
+
+  .feed-controls { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+  input, select, button { font: 13px/1.4 var(--sans); color: var(--ink); }
+  .feed-controls select, .feed-controls input {
+    background: var(--card); border: 1px solid var(--line); padding: 5px 9px; border-radius: 6px; }
+  .feed-controls button { background: var(--card); border: 1px solid var(--line);
+    padding: 5px 13px; border-radius: 6px; cursor: pointer; }
+  .feed-controls button:hover { border-color: var(--faint); }
+
+  /* The spine: every event row carries a colored left tick — the feed reads as a
+     seismogram of memory activity. */
+  .feed-item { display: flex; gap: 12px; align-items: flex-start; padding: 8px 14px;
+    border-left: 2px solid transparent; border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 12.5px; background: var(--card); }
+  .feed-item:first-child { border-top-left-radius: 8px; border-top-right-radius: 8px; }
+  .feed-item:last-child { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+  #feed-list, #mem-list { border: 1px solid var(--line); border-radius: 8px; background: var(--card); overflow: hidden; }
+  #feed-list:empty, #mem-list:empty { border: none; }
+  #feed-list .feed-item, #mem-list .feed-item { border-radius: 0; }
+  #feed-list .feed-item:last-child, #mem-list .feed-item:last-child { border-bottom: none; }
+  .act-write    { border-left-color: var(--green); }
+  .act-retrieve { border-left-color: var(--iris); }
+  .act-supersede{ border-left-color: var(--amber); }
+  .act-feedback { border-left-color: var(--red); }
+  .act-job, .act-export, .act-purge { border-left-color: var(--faint); }
+  .act-label { width: 78px; flex-shrink: 0; font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--mute); padding-top: 2px; }
+  .feed-item .detail { flex: 1; overflow-wrap: anywhere; }
+  .feed-item .time { color: var(--faint); font-size: 11px; flex-shrink: 0; padding-top: 1px; }
+  .clickable { color: var(--iris); cursor: pointer; text-decoration: none; }
+  .clickable:hover { text-decoration: underline; }
+
   table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #21262d; }
-  th { color: #8b949e; font-weight: 600; }
-  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-  .stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
-  .stat-card h3 { font-size: 14px; margin-bottom: 8px; color: #f0f6fc; }
-  .drawer-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.5); z-index: 100; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: none; }
+  th { font-family: var(--mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--mute); font-weight: 500; }
+
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .stat-card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+  .stat-card h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--mute); font-weight: 500; margin-bottom: 10px; }
+  .stat-card pre { font-family: var(--mono); }
+
+  .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(28,29,32,.28); z-index: 100; }
   .drawer-overlay.open { display: flex; justify-content: flex-end; }
-  .drawer { width: 480px; max-width: 90vw; background: #161b22; border-left: 1px solid #30363d; overflow-y: auto; padding: 20px; height: 100vh; position: relative; }
-  .drawer h2 { font-size: 16px; margin-bottom: 12px; }
-  .drawer .field { margin-bottom: 8px; }
-  .drawer .field-label { color: #8b949e; font-size: 12px; }
-  .drawer .close-btn { position: absolute; top: 12px; right: 12px; background: none; border: none; color: #8b949e; cursor: pointer; font-size: 18px; }
-  .qualifier { color: #d29922; font-size: 12px; margin-left: 4px; }
-  .score-bar { height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; margin: 2px 0; }
-  .score-bar-fill { height: 100%; border-radius: 4px; }
-  .empty { color: #8b949e; padding: 20px; text-align: center; }
-  .tag { display: inline-block; background: #1f6feb22; color: #58a6ff; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin: 1px 2px; }
-  .status-active { color: #3fb950; }
-  .status-superseded { color: #8b949e; text-decoration: line-through; }
-  .status-disputed { color: #d29922; }
+  .drawer { width: 480px; max-width: 92vw; background: var(--card); border-left: 1px solid var(--line);
+    box-shadow: -16px 0 40px rgba(28,29,32,.10); overflow-y: auto; padding: 24px; height: 100vh;
+    position: relative; animation: slide-in 160ms ease-out; }
+  @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+  .drawer h2 { font-size: 16px; line-height: 1.4; margin-bottom: 14px; padding-right: 28px; }
+  .drawer h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--mute); font-weight: 500; margin-top: 18px; margin-bottom: 6px; }
+  .drawer .field { margin-bottom: 7px; font-size: 13px; }
+  .drawer .field-label { font-family: var(--mono); font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--faint); display: inline-block; width: 96px; }
+  .drawer code { font-family: var(--mono); font-size: 12px; background: var(--wash);
+    padding: 1px 5px; border-radius: 4px; }
+  .drawer .close-btn { position: absolute; top: 14px; right: 14px; background: none; border: none;
+    color: var(--mute); cursor: pointer; font-size: 18px; line-height: 1; }
+  .drawer .close-btn:hover { color: var(--ink); }
+
+  .qualifier { font-family: var(--mono); color: var(--amber); font-size: 11px; margin-left: 4px; }
+  .score-bar { height: 5px; background: var(--wash); border-radius: 3px; overflow: hidden; margin: 2px 0; }
+  .score-bar-fill { height: 100%; border-radius: 3px; }
+  .empty { color: var(--faint); padding: 28px; text-align: center; font-size: 13px; }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 11px;
+    background: #5B5BD612; color: var(--iris); padding: 1px 6px; border-radius: 4px; margin: 1px 2px; }
+  .status-active { color: var(--green); }
+  .status-superseded { color: var(--faint); text-decoration: line-through; }
+  .status-disputed { color: var(--amber); }
+  .meta-row { display: flex; gap: 8px; font-size: 12px; color: var(--mute); align-items: center; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Mneme Inspector</h1>
+  <h1 class="wordmark">Mneme<small>inspector</small></h1>
   <nav class="tabs">
     <button class="tab-btn active" data-tab="feed">Feed</button>
     <button class="tab-btn" data-tab="memories">Memories</button>
@@ -66,15 +129,15 @@
       <option value="supersede">Supersedes</option>
       <option value="feedback">Feedback</option>
     </select>
-    <input id="feed-search" type="text" placeholder="Filter text…" style="flex:1;max-width:200px">
-    <button id="feed-pause">⏸ Pause</button>
+    <input id="feed-search" type="text" placeholder="Filter text…" style="flex:1;max-width:220px">
+    <button id="feed-pause">Pause</button>
   </div>
   <div id="feed-list"></div>
 </div>
 
 <div id="memories-tab" class="tab-panel">
   <div class="feed-controls">
-    <input id="mem-search" type="text" placeholder="Search memories…" style="flex:1;max-width:300px">
+    <input id="mem-search" type="text" placeholder="Search memories…" style="flex:1;max-width:320px">
     <select id="mem-type-filter">
       <option value="">All types</option>
       <option value="semantic">Semantic</option>
@@ -83,7 +146,7 @@
       <option value="working">Working</option>
     </select>
     <button id="mem-search-btn">Search</button>
-    <button id="mem-list-btn">List All</button>
+    <button id="mem-list-btn">List all</button>
   </div>
   <div id="mem-list"></div>
 </div>
@@ -94,7 +157,7 @@
 
 <div id="drawer-overlay" class="drawer-overlay">
   <div class="drawer" id="drawer">
-    <button class="close-btn" id="drawer-close">×</button>
+    <button class="close-btn" id="drawer-close" aria-label="Close">×</button>
     <div id="drawer-content"></div>
   </div>
 </div>
@@ -141,31 +204,29 @@ async function loadDrawer(id) {
     <div class="field"><span class="field-label">Confidence</span> ${(m.confidence * 100).toFixed(0)}%</div>
     <div class="field"><span class="field-label">Importance</span> ${(m.importance * 100).toFixed(0)}%</div>
     <div class="field"><span class="field-label">Decay</span> ${decayPct}% (half-life ${m.decayHalfLifeDays}d)</div>
-    ${m.structured?.entityKey ? `<div class="field"><span class="field-label">Entity Key</span> <code>${m.structured.entityKey}</code></div>` : ""}
+    ${m.structured?.entityKey ? `<div class="field"><span class="field-label">Entity key</span> <code>${m.structured.entityKey}</code></div>` : ""}
     <div class="field"><span class="field-label">Tags</span> ${(m.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(" ") || "—"}</div>
     <div class="field"><span class="field-label">Sources</span> ${(m.sourceRefs || []).map(s => `${s.kind}:${s.id}`).join(", ") || "—"}</div>
     <div class="field"><span class="field-label">Retention</span> ${m.retention.mode}${m.retention.pinReason ? " — " + esc(m.retention.pinReason) : ""}</div>
-    <h3 style="margin-top:16px">Links</h3>
+    <h3>Links</h3>
     ${(m.resolvedLinks || []).map(l => `
       <div class="feed-item">
-        <span>${l.rel}</span>
+        <span class="act-label">${l.rel.replace(/_/g, " ")}</span>
         <span class="detail">
           <span class="clickable" onclick="openDrawer('${l.targetId}')">${esc(l.targetPreview)}</span>
-          <span class="status-${l.targetStatus}" style="margin-left:4px;font-size:12px">(${l.targetStatus})</span>
+          <span class="status-${l.targetStatus}" style="margin-left:4px;font-size:11px">(${l.targetStatus})</span>
         </span>
       </div>
     `).join("") || '<div class="empty">No links</div>'}
-    <h3 style="margin-top:16px">Events</h3>
+    <h3>Events</h3>
     ${(m.events || []).map(e => {
       const d = typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail);
-      return `<div class="feed-item"><span class="detail">${esc(e.action)}: ${esc(d)}</span><span class="time">${formatTime(e.createdAt)}</span></div>`;
+      return `<div class="feed-item act-${e.action}"><span class="detail">${esc(e.action)}: ${esc(d)}</span><span class="time">${formatTime(e.createdAt)}</span></div>`;
     }).join("") || '<div class="empty">No events</div>'}
   `;
 }
 
 // --- Feed ---
-const ACTION_ICONS = { write: "✏️", retrieve: "🔍", supersede: "⛓", feedback: "💬", export: "📦", purge: "🗑", job: "⚙️" };
-
 function renderFeedItem(e) {
   const d = typeof e.detail === "object" ? e.detail : (() => { try { return JSON.parse(e.detail); } catch { return { raw: e.detail }; } })();
   let text = "";
@@ -187,7 +248,7 @@ function renderFeedItem(e) {
     default:
       text = esc(d.raw || JSON.stringify(d));
   }
-  return `<div class="feed-item"><span class="icon">${ACTION_ICONS[e.action] || "•"}</span><span class="detail">${text}</span><span class="time">${formatTime(e.createdAt)}</span></div>`;
+  return `<div class="feed-item act-${e.action}"><span class="act-label">${esc(e.action)}</span><span class="detail">${text}</span><span class="time">${formatTime(e.createdAt)}</span></div>`;
 }
 
 async function loadFeed() {
@@ -199,7 +260,7 @@ async function loadFeed() {
   const filtered = search ? events.filter(e => JSON.stringify(e.detail).toLowerCase().includes(search)) : events;
   document.getElementById("feed-list").innerHTML = filtered.length
     ? filtered.map(renderFeedItem).join("")
-    : '<div class="empty">No events yet. Write or retrieve some memories.</div>';
+    : '<div class="empty">No events yet. Write or retrieve a memory and it will appear here.</div>';
 }
 
 function startFeed() { loadFeed(); feedInterval = setInterval(loadFeed, 3000); }
@@ -207,7 +268,7 @@ function stopFeed() { clearInterval(feedInterval); feedInterval = null; }
 
 document.getElementById("feed-pause").addEventListener("click", () => {
   feedPaused = !feedPaused;
-  document.getElementById("feed-pause").textContent = feedPaused ? "▶ Resume" : "⏸ Pause";
+  document.getElementById("feed-pause").textContent = feedPaused ? "Resume" : "Pause";
   feedPaused ? stopFeed() : startFeed();
 });
 document.getElementById("feed-action-filter").addEventListener("change", loadFeed);
@@ -231,15 +292,15 @@ async function loadMemories(query, type) {
   }
   document.getElementById("mem-list").innerHTML = memories.length
     ? memories.map(m => `
-      <div class="feed-item" style="flex-direction:column;gap:4px">
-        <div style="display:flex;gap:8px;align-items:center">
+      <div class="feed-item" style="flex-direction:column;gap:5px;font-family:var(--sans);font-size:13.5px">
+        <div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap">
           <span class="clickable" onclick="openDrawer('${m.id}')">${esc((m.content || "").slice(0, 80))}</span>
-          ${m.qualifier ? `<span class="qualifier">⚠ ${esc(m.qualifier)}</span>` : ""}
+          ${m.qualifier ? `<span class="qualifier">${esc(m.qualifier)}</span>` : ""}
         </div>
-        <div style="display:flex;gap:8px;font-size:12px;color:#8b949e">
+        <div class="meta-row">
           <span class="tag">${m.type}</span>
           <span class="status-${m.status}">${m.status}</span>
-          ${m.score != null ? `<span>score: ${m.score.toFixed(3)}</span>` : ""}
+          ${m.score != null ? `<span style="font-family:var(--mono);font-size:11px">score ${m.score.toFixed(3)}</span>` : ""}
           ${(m.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("")}
         </div>
         ${m.scoreBreakdown ? renderScoreBreakdown(m.scoreBreakdown) : ""}
@@ -251,15 +312,15 @@ async function loadMemories(query, type) {
 function renderScoreBreakdown(bd) {
   const max = 0.5;
   const bars = [
-    { label: "vector", value: bd.vector || 0, color: "#58a6ff" },
-    { label: "keyword", value: bd.keyword || 0, color: "#3fb950" },
-    { label: "importance", value: bd.importance || 0, color: "#d29922" },
-    { label: "recency", value: bd.recency || 0, color: "#bc8cff" },
-    { label: "decay", value: bd.decay || 0, color: "#f85149" },
-    { label: "conflict", value: bd.conflict || 0, color: "#f85149" },
+    { label: "vector", value: bd.vector || 0, color: "var(--iris)" },
+    { label: "keyword", value: bd.keyword || 0, color: "var(--green)" },
+    { label: "importance", value: bd.importance || 0, color: "var(--amber)" },
+    { label: "recency", value: bd.recency || 0, color: "var(--slate)" },
+    { label: "decay", value: bd.decay || 0, color: "var(--red)" },
+    { label: "conflict", value: bd.conflict || 0, color: "var(--red)" },
   ];
-  return `<div style="display:flex;gap:4px;margin-top:4px">${bars.map(b =>
-    `<div title="${b.label}: ${b.value.toFixed(3)}" style="flex:1"><div class="score-bar"><div class="score-bar-fill" style="width:${Math.min(100, Math.abs(b.value) / max * 100)}%;background:${b.color}"></div></div><div style="font-size:10px;color:#8b949e;text-align:center">${b.label.slice(0, 3)}</div></div>`
+  return `<div style="display:flex;gap:6px;margin-top:2px;max-width:420px">${bars.map(b =>
+    `<div title="${b.label}: ${b.value.toFixed(3)}" style="flex:1"><div class="score-bar"><div class="score-bar-fill" style="width:${Math.min(100, Math.abs(b.value) / max * 100)}%;background:${b.color}"></div></div><div style="font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--faint);text-align:center;text-transform:uppercase">${b.label.slice(0, 3)}</div></div>`
   ).join("")}</div>`;
 }
 
@@ -288,27 +349,27 @@ async function loadHealth() {
   }).join("");
 
   const jobRows = Object.entries(stats.lastJobs || {}).map(([kind, info]) => {
-    return `<tr><td>${kind}</td><td>${formatTime(info.updatedAt)}</td><td><pre style="font-size:11px">${esc(JSON.stringify(info.result, null, 0))}</pre></td></tr>`;
+    return `<tr><td>${kind}</td><td>${formatTime(info.updatedAt)}</td><td><pre style="font-size:11px;white-space:pre-wrap">${esc(JSON.stringify(info.result, null, 0))}</pre></td></tr>`;
   }).join("");
 
   document.getElementById("health-content").innerHTML = `
     <div class="stat-grid">
       <div class="stat-card">
-        <h3>Memory Counts</h3>
+        <h3>Memory counts</h3>
         <table><thead><tr><th>Type</th><th>Status</th><th>Count</th></tr></thead><tbody>${typeStatusRows || "<tr><td colspan='3'>No memories</td></tr>"}</tbody></table>
       </div>
       <div class="stat-card">
-        <h3>Embedding Coverage</h3>
+        <h3>Embedding coverage</h3>
         <p>${stats.embeddingCoverage.withVector} / ${stats.embeddingCoverage.total} memories have vectors</p>
         <p style="margin-top:8px">Quarantine: ${stats.quarantineCount} items</p>
       </div>
       <div class="stat-card">
-        <h3>Last Jobs</h3>
+        <h3>Last jobs</h3>
         <table><thead><tr><th>Kind</th><th>When</th><th>Result</th></tr></thead><tbody>${jobRows || "<tr><td colspan='3'>No jobs run yet</td></tr>"}</tbody></table>
       </div>
       <div class="stat-card">
-        <h3>Digest Preview</h3>
-        <p style="white-space:pre-wrap;font-size:13px">${esc(digest.text || "(empty)")}</p>
+        <h3>Digest preview</h3>
+        <p style="white-space:pre-wrap;font-family:var(--mono);font-size:12.5px">${esc(digest.text || "Nothing yet — pinned and high-importance memories appear here.")}</p>
       </div>
     </div>
   `;

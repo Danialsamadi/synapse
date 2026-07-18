@@ -63,9 +63,8 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
       ? json.map((j) => CreateMemoryInputSchema.parse(j))
       : [CreateMemoryInputSchema.parse(json)];
     const results = await Promise.all(inputs.map(async (input) => {
-      const existing = repository.findActiveByContentHash(input.userId, input.type, input.content);
-      if (existing) return { deduped: true as const, memory: existing };
-      const memory = repository.create(input);
+      const { memory, deduped } = repository.createWithEntitySupersede(input);
+      if (deduped) return { deduped: true as const, memory };
       const [vec] = await embedder.embed([memory.content]);
       if (vec) repository.saveEmbedding(memory.id, vec, embedder.model);
       return { deduped: false as const, memory };

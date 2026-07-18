@@ -45,7 +45,7 @@ export class MemoryRepository {
   }
 
   create(raw: CreateMemoryInput): Memory {
-    const { entityKey: _ignored, ...input } = CreateMemoryInputSchema.parse(raw);
+    const { entityKey, ...input } = CreateMemoryInputSchema.parse(raw);
     const now = new Date().toISOString();
     const type = input.type;
     const memory: Memory = {
@@ -97,12 +97,15 @@ export class MemoryRepository {
       .run(toRow(memory, hash));
 
     const preview = memory.content.length > 120 ? memory.content.slice(0, 117) + "…" : memory.content;
+    // entityKey arrives top-level from direct create() calls, but via structured
+    // when createWithEntitySupersede re-enters — log it from either path.
+    const auditEntityKey = entityKey ?? (input.structured?.entityKey as string | undefined);
     this.addAudit("write", JSON.stringify({
       id: memory.id,
       type: memory.type,
       contentPreview: preview,
       source: input.source ?? "api",
-      ...(input.entityKey ? { entityKey: input.entityKey } : {}),
+      ...(auditEntityKey ? { entityKey: auditEntityKey } : {}),
     }));
 
     return memory;
