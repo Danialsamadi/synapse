@@ -76,6 +76,12 @@ export class RetrievalService {
     let top = scored.slice(0, req.limit).map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req, now));
     if (req.tokenBudget) top = packByTokenBudget(top, req.tokenBudget);
     this.repo.touchAccessed(top.map((m) => m.id));
+    this.repo.addAudit("retrieve", JSON.stringify({
+      query: req.query,
+      returnedIds: top.map((m) => m.id),
+      candidateCount: candidates.length,
+      latencyMs: Math.round(performance.now() - start),
+    }));
     return {
       memories: top,
       stats: { candidateCount: candidates.length, latencyMs: Math.round(performance.now() - start) },

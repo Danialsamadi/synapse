@@ -225,3 +225,23 @@ describe("touch-on-retrieve affects ranking", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 });
+
+describe("retrieve audit logging", () => {
+  it("retrieve logs an audit event with query and stats", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const svc = new RetrievalService(repo, embedder);
+    const m = repo.create({ userId: "local", type: "semantic", content: "test fact" });
+    const [v] = await embedder.embed([m.content]);
+    if (v) repo.saveEmbedding(m.id, v, embedder.model);
+    await svc.retrieve({ query: "test", userId: "local", limit: 5 });
+    const events = repo.listAudit("retrieve");
+    assert.equal(events.length, 1);
+    const detail = JSON.parse(events[0]!.detail);
+    assert.equal(detail.query, "test");
+    assert.ok(Array.isArray(detail.returnedIds));
+    assert.ok(typeof detail.candidateCount === "number");
+    assert.ok(typeof detail.latencyMs === "number");
+    repo.close();
+  });
+});

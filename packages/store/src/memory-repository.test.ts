@@ -288,3 +288,63 @@ describe("entity anchoring", () => {
     repo.close();
   });
 });
+
+describe("audit event logging", () => {
+  it("create() logs a write audit event with source", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    repo.create({ userId: "local", type: "semantic", content: "test fact", source: "mcp" });
+    const events = repo.listAudit("write");
+    assert.equal(events.length, 1);
+    const detail = JSON.parse(events[0]!.detail);
+    assert.equal(detail.type, "semantic");
+    assert.equal(detail.source, "mcp");
+    assert.match(detail.contentPreview, /test fact/);
+    repo.close();
+  });
+
+  it("create() defaults source to api", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    repo.create({ userId: "local", type: "semantic", content: "fact" });
+    const events = repo.listAudit("write");
+    assert.equal(JSON.parse(events[0]!.detail).source, "api");
+    repo.close();
+  });
+
+  it("createWithEntitySupersede() logs supersede events", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const first = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "works at Acme", entityKey: "user.employer",
+    });
+    const second = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "works at Initech", entityKey: "user.employer",
+    });
+    const supersedeEvents = repo.listAudit("supersede");
+    assert.ok(supersedeEvents.length >= 1);
+    const detail = JSON.parse(supersedeEvents[0]!.detail);
+    assert.equal(detail.winnerId, second.memory.id);
+    assert.equal(detail.loserId, first.memory.id);
+    assert.equal(detail.via, "entityKey");
+    repo.close();
+  });
+
+  it("listAudit supports limit parameter, newest first", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    for (let i = 0; i < 5; i++) repo.addAudit("test", `event-${i}`);
+    const all = repo.listAudit("test");
+    assert.equal(all.length, 5);
+    const limited = repo.listAudit("test", 3);
+    assert.equal(limited.length, 3);
+    assert.ok(limited[0]!.id > limited[1]!.id);
+    repo.close();
+  });
+
+  it("pruneAudit keeps newest N rows", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    for (let i = 0; i < 10; i++) repo.addAudit("test", `event-${i}`);
+    repo.pruneAudit(3);
+    const remaining = repo.listAudit("test");
+    assert.equal(remaining.length, 3);
+    assert.match(remaining[0]!.detail, /event-9/);
+    repo.close();
+  });
+});

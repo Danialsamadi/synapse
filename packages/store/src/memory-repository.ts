@@ -96,6 +96,15 @@ export class MemoryRepository {
       )
       .run(toRow(memory, hash));
 
+    const preview = memory.content.length > 120 ? memory.content.slice(0, 117) + "…" : memory.content;
+    this.addAudit("write", JSON.stringify({
+      id: memory.id,
+      type: memory.type,
+      contentPreview: preview,
+      source: input.source ?? "api",
+      ...(input.entityKey ? { entityKey: input.entityKey } : {}),
+    }));
+
     return memory;
   }
 
@@ -221,6 +230,11 @@ export class MemoryRepository {
     for (const old of prior) {
       this.update(old.id, { status: "superseded" });
       this.addLink(memory.id, old.id, "supersedes");
+      this.addAudit("supersede", JSON.stringify({
+        winnerId: memory.id,
+        loserId: old.id,
+        via: "entityKey",
+      }));
     }
     return { memory, supersededIds: prior.map((m) => m.id), deduped: !!existing };
   }
@@ -265,12 +279,21 @@ export class MemoryRepository {
     return rows.map((r) => ({ id: r.id, kind: r.kind, payload: r.payload, error: r.error, createdAt: r.created_at }));
   }
 
-  listAudit(action?: string): Array<{ id: number; action: string; detail: string; createdAt: string }> {
-    const rows = (
-      action
-        ? this.db.prepare(`SELECT * FROM audit_log WHERE action = ? ORDER BY id`).all(action)
-        : this.db.prepare(`SELECT * FROM audit_log ORDER BY id`).all()
-    ) as Array<{ id: number; action: string; detail: string; created_at: string }>;
+  listAudit(action?: string, limit?: number): Array<{ id: number; action: string; detail: string; createdAt: string }> {
+    let sql = `SELECT * FROM audit_log`;
+    const params: unknown[] = [];
+    if (action) {
+      sql += ` WHERE action = ?`;
+      params.push(action);
+    }
+    sql += ` ORDER BY id DESC`;
+    if (limit) {
+      sql += ` LIMIT ?`;
+      params.push(limit);
+    }
+    const rows = this.db.prepare(sql).all(...params) as Array<{
+      id: number; action: string; detail: string; created_at: string;
+    }>;
     return rows.map((r) => ({ id: r.id, action: r.action, detail: r.detail, createdAt: r.created_at }));
   }
 
@@ -278,6 +301,12 @@ export class MemoryRepository {
     this.db
       .prepare(`INSERT INTO audit_log (action, detail, created_at) VALUES (?, ?, ?)`)
       .run(action, detail, new Date().toISOString());
+  }
+
+  pruneAudit(keepLast = 5000): void {
+    this.db.prepare(
+      `DELETE FROM audit_log WHERE id NOT IN (SELECT id FROM audit_log ORDER BY id DESC LIMIT ?)`,
+    ).run(keepLast);
   }
 
   saveEmbedding(memoryId: string, vector: number[], model: string): void {
