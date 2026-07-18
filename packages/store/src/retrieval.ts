@@ -20,6 +20,24 @@ export class RetrievalService {
     private readonly weights: RankWeights = DEFAULT_RANK_WEIGHTS,
   ) {}
 
+  /** Always-on core memory: pinned first, then top-importance active non-working. */
+  digest(
+    userId: string,
+    maxItems = 12,
+  ): { items: Array<{ id: string; type: Memory["type"]; content: string }>; text: string } {
+    const active = this.repo
+      .list(userId, { status: "active" })
+      .filter((m) => m.type !== "working");
+    const pinned = active.filter((m) => m.retention.mode === "pinned");
+    const rest = active
+      .filter((m) => m.retention.mode !== "pinned")
+      .sort((a, b) => b.importance - a.importance);
+    const items = [...pinned, ...rest]
+      .slice(0, maxItems)
+      .map((m) => ({ id: m.id, type: m.type, content: m.content }));
+    return { items, text: items.map((i) => `- [${i.type}] ${i.content}`).join("\n") };
+  }
+
   async retrieve(req: RetrieveRequest): Promise<{
     memories: RetrievedMemory[];
     stats: { candidateCount: number; latencyMs: number };

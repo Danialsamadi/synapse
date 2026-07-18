@@ -65,5 +65,15 @@ export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
     },
   );
 
+  server.registerTool(
+    "memory_digest",
+    {
+      description:
+        "Get the always-on core memory digest: pinned and most important durable facts about the user. Call this once at the START of a session and keep the result in mind for the whole conversation.",
+      inputSchema: { maxItems: z.number().int().positive().max(50).optional() },
+    },
+    async ({ maxItems }) => json(retrieval.digest("local", maxItems ?? 12)),
+  );
+
   return server;
 }

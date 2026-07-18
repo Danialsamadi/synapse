@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { HashEmbeddingProvider } from "@mneme/embeddings";
 import { MemoryRepository } from "./memory-repository.js";
 import { RetrievalService } from "./retrieval.js";
+import type { Memory } from "@mneme/core";
 
 async function seeded() {
   const repo = new MemoryRepository({ path: ":memory:" });
@@ -70,6 +71,28 @@ describe("RetrievalService", () => {
     const res = await svc.retrieve({ query: "user info", userId: "local", limit: 10, types: ["semantic"] });
     assert.equal(res.memories.length, 1);
     assert.equal(res.memories[0]?.id, sem.id);
+    repo.close();
+  });
+});
+
+describe("digest", () => {
+  it("puts pinned first, then by importance, capped at maxItems, excluding working", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+    repo.create({ userId: "local", type: "semantic", content: "high importance fact", importance: 0.9 });
+    repo.create({ userId: "local", type: "semantic", content: "low importance fact", importance: 0.1 });
+    const pinned = repo.create({
+      userId: "local", type: "procedural", content: "always answer in French",
+      importance: 0.2, retention: { mode: "pinned", pinReason: "user asked" },
+    });
+    repo.create({ userId: "local", type: "working", content: "scratch state" });
+
+    const d = svc.digest("local", 2);
+    assert.equal(d.items.length, 2);
+    assert.equal(d.items[0]!.id, pinned.id);
+    assert.equal(d.items[1]!.content, "high importance fact");
+    assert.match(d.text, /- \[procedural\] always answer in French/);
+    assert.doesNotMatch(d.text, /scratch state/);
     repo.close();
   });
 });

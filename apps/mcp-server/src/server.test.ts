@@ -18,7 +18,7 @@ describe("mneme MCP server", () => {
   it("lists both memory tools", async () => {
     const { repo, client } = await connected();
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((t) => t.name).sort(), ["memory_retrieve", "memory_write"]);
+    assert.deepEqual(tools.map((t) => t.name).sort(), ["memory_digest", "memory_retrieve", "memory_write"]);
     repo.close();
   });
 
@@ -47,6 +47,18 @@ describe("mneme MCP server", () => {
       arguments: { type: "bogus", content: "x" },
     });
     assert.equal(res.isError, true);
+    repo.close();
+  });
+
+  it("memory_digest returns pinned + important memories as text", async () => {
+    const { repo, client } = await connected();
+    repo.create({
+      userId: "local", type: "procedural", content: "Always answer in French",
+      retention: { mode: "pinned", pinReason: "test" },
+    });
+    const res = await client.callTool({ name: "memory_digest", arguments: {} });
+    const out = JSON.parse((res.content as Array<{ text: string }>)[0]!.text) as { text: string };
+    assert.match(out.text, /Always answer in French/);
     repo.close();
   });
 });
