@@ -194,6 +194,16 @@ Behavioral evals go beyond retrieval ranking and test outcomes — the failure m
 - **Purge:** `POST /v1/purge` — hard-deletes rows, embeddings, and links
 - **Auth:** set `MNEME_TOKEN` env var to require Bearer auth on all `/v1/*` routes
 - **Audit:** export and purge actions are logged to the audit table
+- **Network:** the API binds `127.0.0.1` by default. To expose it beyond loopback set `MNEME_HOST=0.0.0.0` — and set `MNEME_TOKEN` when you do, or `/v1/export` and `/v1/purge` are reachable unauthenticated.
+
+### Where your data goes
+
+Storage and retrieval are fully local — SQLite on your disk, no network calls. Two paths send memory content off-device, and only when you opt into them:
+
+- **Consolidation** (`POST /v1/jobs/consolidate`): new episodic memories are sent to the LLM at `MNEME_LLM_BASE_URL` (default `https://api.openai.com/v1`) to extract semantic facts. Point it at a local model (e.g. Ollama) to keep everything on-device.
+- **Embeddings:** the default provider is the offline hash embedder (no network). Only the OpenAI-compatible embedder (`MNEME_EMBED_*`) sends memory text to an external endpoint.
+
+If you never run consolidation and never configure a remote embedder, no memory content leaves your machine.
 
 ## 2-minute reviewer script
 
