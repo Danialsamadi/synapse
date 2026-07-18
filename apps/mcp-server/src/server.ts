@@ -26,9 +26,7 @@ export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
       },
     },
     async ({ type, content, importance, tags, entityKey }) => {
-      const existing = repo.findActiveByContentHash("local", type, content);
-      if (existing) return json({ deduped: true, memory: existing });
-      const { memory, supersededIds } = repo.createWithEntitySupersede({
+      const { memory, supersededIds, deduped } = repo.createWithEntitySupersede({
         userId: "local",
         type,
         content,
@@ -37,6 +35,13 @@ export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
         ...(entityKey ? { entityKey } : {}),
         sourceRefs: [{ kind: "tool", id: "mcp", observedAt: new Date().toISOString() }],
       });
+      if (deduped) {
+        return json({
+          deduped: true,
+          memory,
+          ...(supersededIds.length > 0 ? { supersededIds } : {}),
+        });
+      }
       const [vec] = await embedder.embed([memory.content]);
       if (vec) repo.saveEmbedding(memory.id, vec, embedder.model);
       return json(supersededIds.length > 0 ? { ...memory, supersededIds } : memory);

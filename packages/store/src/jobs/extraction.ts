@@ -59,13 +59,10 @@ export async function consolidate(
 
   const validEpisodeIds = new Set(episodes.map((e) => e.id));
   for (const fact of parsed.facts) {
-    const existing = repo.findActiveByContentHash(userId, "semantic", fact.content);
-    if (existing) {
-      result.duplicates++;
-      continue;
-    }
     const supporting = fact.supportingEpisodeIds.filter((id) => validEpisodeIds.has(id));
-    const { memory } = repo.createWithEntitySupersede({
+    // Dedupe lives in createWithEntitySupersede so a repeated fact can still
+    // pick up a new entityKey and supersede its siblings.
+    const { memory, deduped } = repo.createWithEntitySupersede({
       userId,
       type: "semantic",
       content: fact.content,
@@ -74,6 +71,10 @@ export async function consolidate(
       ...(fact.entityKey ? { entityKey: fact.entityKey } : {}),
       sourceRefs: supporting.map((id) => ({ kind: "message" as const, id, observedAt: new Date().toISOString() })),
     });
+    if (deduped) {
+      result.duplicates++;
+      continue;
+    }
     const [vec] = await embedder.embed([memory.content]);
     if (vec) repo.saveEmbedding(memory.id, vec, embedder.model);
     for (const epId of supporting) {

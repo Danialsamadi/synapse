@@ -145,6 +145,16 @@ describe("feedback loop", () => {
     assert.equal(repo.applyFeedback("nope", "helpful"), null);
     repo.close();
   });
+
+  it("helpful restores a disputed memory to active", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({ userId: "local", type: "semantic", content: "redeemed fact" });
+    repo.applyFeedback(m.id, "stale");
+    assert.equal(repo.get(m.id)!.status, "disputed");
+    const restored = repo.applyFeedback(m.id, "helpful")!;
+    assert.equal(restored.status, "active");
+    repo.close();
+  });
 });
 
 describe("entity anchoring", () => {
@@ -170,11 +180,35 @@ describe("entity anchoring", () => {
     repo.close();
   });
 
-  it("without entityKey behaves like create", () => {
+  it("without entityKey behaves like create, deduping identical content", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const r = repo.createWithEntitySupersede({ userId: "local", type: "semantic", content: "plain fact" });
     assert.deepEqual(r.supersededIds, []);
     assert.equal(r.memory.structured, undefined);
+    assert.equal(r.deduped, false);
+    const again = repo.createWithEntitySupersede({ userId: "local", type: "semantic", content: "plain fact" });
+    assert.equal(again.deduped, true);
+    assert.equal(again.memory.id, r.memory.id);
+    repo.close();
+  });
+
+  it("dedupe with a new entityKey attaches the key and supersedes siblings", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const bare = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User lives in Vancouver",
+    });
+    const rival = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User lives in Toronto", entityKey: "user.location",
+    });
+
+    const r = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User lives in Vancouver", entityKey: "user.location",
+    });
+    assert.equal(r.deduped, true);
+    assert.equal(r.memory.id, bare.memory.id);
+    assert.equal(r.memory.structured?.entityKey, "user.location");
+    assert.deepEqual(r.supersededIds, [rival.memory.id]);
+    assert.equal(repo.get(rival.memory.id)!.status, "superseded");
     repo.close();
   });
 });

@@ -188,21 +188,41 @@ export class MemoryRepository {
     return rows.map((r) => this.withLinks(fromRow(r)));
   }
 
-  /** Create; if entityKey given, mark prior actives with that key superseded and link. */
-  createWithEntitySupersede(rawInput: CreateMemoryInput): { memory: Memory; supersededIds: string[] } {
+  /**
+   * Create with content-hash dedupe; if entityKey given, mark prior actives
+   * with that key superseded and link. On dedupe with a new entityKey, the
+   * key is attached to the existing memory so supersession still applies.
+   */
+  createWithEntitySupersede(
+    rawInput: CreateMemoryInput,
+  ): { memory: Memory; supersededIds: string[]; deduped: boolean } {
     const { entityKey, ...rest } = CreateMemoryInputSchema.parse(rawInput);
-    if (!entityKey) return { memory: this.create(rest), supersededIds: [] };
+    const userId = rest.userId ?? "local";
+    const existing = this.findActiveByContentHash(userId, rest.type, rest.content);
+    if (!entityKey) {
+      return existing
+        ? { memory: existing, supersededIds: [], deduped: true }
+        : { memory: this.create(rest), supersededIds: [], deduped: false };
+    }
 
-    const prior = this.findActiveByEntityKey(rest.userId ?? "local", entityKey);
-    const memory = this.create({
-      ...rest,
-      structured: { ...(rest.structured ?? {}), entityKey },
-    });
+    const prior = this.findActiveByEntityKey(userId, entityKey).filter(
+      (m) => m.id !== existing?.id,
+    );
+    const memory = existing
+      ? existing.structured?.entityKey === entityKey
+        ? existing
+        : this.update(existing.id, {
+            structured: { ...(existing.structured ?? {}), entityKey },
+          })!
+      : this.create({
+          ...rest,
+          structured: { ...(rest.structured ?? {}), entityKey },
+        });
     for (const old of prior) {
       this.update(old.id, { status: "superseded" });
       this.addLink(memory.id, old.id, "supersedes");
     }
-    return { memory, supersededIds: prior.map((m) => m.id) };
+    return { memory, supersededIds: prior.map((m) => m.id), deduped: !!existing };
   }
 
   private withLinks(m: Memory): Memory {
@@ -297,13 +317,16 @@ export class MemoryRepository {
     tx(ids);
   }
 
-  /** Agent-reported verdict on a retrieved memory. helpful: +0.1 confidence. stale/wrong: -0.3 and disputed. */
+  /** Agent-reported verdict on a retrieved memory. helpful: +0.1 confidence, restores disputed → active. stale/wrong: -0.3 and disputed. */
   applyFeedback(id: string, verdict: "helpful" | "stale" | "wrong"): Memory | null {
     const m = this.get(id);
     if (!m) return null;
     const next =
       verdict === "helpful"
-        ? this.update(id, { confidence: Math.min(1, m.confidence + 0.1) })
+        ? this.update(id, {
+            confidence: Math.min(1, m.confidence + 0.1),
+            ...(m.status === "disputed" ? { status: "active" as const } : {}),
+          })
         : this.update(id, { confidence: Math.max(0, m.confidence - 0.3), status: "disputed" });
     this.addAudit("feedback", JSON.stringify({ id, verdict }));
     return next;
