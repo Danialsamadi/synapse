@@ -1,82 +1,334 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><title>Mneme Inspector</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mneme Inspector</title>
 <style>
-  body{font:14px/1.5 system-ui;margin:2rem auto;max-width:900px;padding:0 1rem}
-  input,select,button{font:inherit;padding:.35rem .6rem;margin-right:.4rem}
-  table{border-collapse:collapse;width:100%;margin-top:1rem}
-  td,th{border:1px solid #ddd;padding:.4rem .6rem;text-align:left;vertical-align:top}
-  .disputed{background:#fff3cd}.superseded{color:#999;text-decoration:line-through}
-  .tag{background:#eef;border-radius:3px;padding:0 .3rem;margin-right:.2rem;font-size:12px}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0d1117; color: #c9d1d9; font-size: 14px; }
+  header { background: #161b22; border-bottom: 1px solid #30363d; padding: 12px 20px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 16px; color: #f0f6fc; }
+  .tabs { display: flex; gap: 0; }
+  .tab-btn { background: none; border: none; color: #8b949e; padding: 8px 16px; cursor: pointer; font-size: 14px; border-bottom: 2px solid transparent; }
+  .tab-btn.active { color: #f0f6fc; border-bottom-color: #58a6ff; }
+  .tab-panel { display: none; padding: 16px 20px; }
+  .tab-panel.active { display: block; }
+  .feed-controls { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+  .feed-controls select, .feed-controls input { background: #0d1117; border: 1px solid #30363d; color: #c9d1d9; padding: 4px 8px; border-radius: 4px; }
+  .feed-controls button { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 4px 12px; border-radius: 4px; cursor: pointer; }
+  .feed-controls button:hover { background: #30363d; }
+  .feed-item { padding: 8px 12px; border-bottom: 1px solid #21262d; display: flex; gap: 8px; align-items: flex-start; }
+  .feed-item .icon { font-size: 16px; flex-shrink: 0; }
+  .feed-item .detail { flex: 1; }
+  .feed-item .time { color: #8b949e; font-size: 12px; flex-shrink: 0; }
+  .feed-item .clickable { color: #58a6ff; cursor: pointer; text-decoration: none; }
+  .feed-item .clickable:hover { text-decoration: underline; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #21262d; }
+  th { color: #8b949e; font-weight: 600; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .stat-card { background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 16px; }
+  .stat-card h3 { font-size: 14px; margin-bottom: 8px; color: #f0f6fc; }
+  .drawer-overlay { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.5); z-index: 100; }
+  .drawer-overlay.open { display: flex; justify-content: flex-end; }
+  .drawer { width: 480px; max-width: 90vw; background: #161b22; border-left: 1px solid #30363d; overflow-y: auto; padding: 20px; height: 100vh; position: relative; }
+  .drawer h2 { font-size: 16px; margin-bottom: 12px; }
+  .drawer .field { margin-bottom: 8px; }
+  .drawer .field-label { color: #8b949e; font-size: 12px; }
+  .drawer .close-btn { position: absolute; top: 12px; right: 12px; background: none; border: none; color: #8b949e; cursor: pointer; font-size: 18px; }
+  .qualifier { color: #d29922; font-size: 12px; margin-left: 4px; }
+  .score-bar { height: 8px; background: #21262d; border-radius: 4px; overflow: hidden; margin: 2px 0; }
+  .score-bar-fill { height: 100%; border-radius: 4px; }
+  .empty { color: #8b949e; padding: 20px; text-align: center; }
+  .tag { display: inline-block; background: #1f6feb22; color: #58a6ff; padding: 2px 6px; border-radius: 4px; font-size: 12px; margin: 1px 2px; }
+  .status-active { color: #3fb950; }
+  .status-superseded { color: #8b949e; text-decoration: line-through; }
+  .status-disputed { color: #d29922; }
 </style>
 </head>
 <body>
-<h1>Mneme Inspector</h1>
-<div>
-  <input id="q" placeholder="search memories…" size="40">
-  <select id="type"><option value="">all types</option><option>episodic</option><option>semantic</option><option>procedural</option><option>working</option></select>
-  <button onclick="search()">Search</button>
-  <button onclick="listAll()">List all</button>
-  <button onclick="aboutMe()">About me</button>
-  <button onclick="conflicts()">Conflicts</button>
-</div>
-<div id="out"></div>
-<script>
-const api = (p, opt) => fetch(p, opt).then(r => r.json());
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+<header>
+  <h1>Mneme Inspector</h1>
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="feed">Feed</button>
+    <button class="tab-btn" data-tab="memories">Memories</button>
+    <button class="tab-btn" data-tab="health">Health</button>
+  </nav>
+</header>
 
-function row(m, extra = "") {
-  const tags = (m.tags||[]).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
-  return `<tr class="${m.status}"><td>${m.type}</td><td>${esc(m.content)} ${tags}</td>
-    <td>${m.status}</td><td>${(m.score??"").toString().slice(0,5)}</td>
-    <td><button onclick="editMem('${m.id}')">edit</button>
-        <button onclick="delMem('${m.id}')">delete</button>${extra}</td></tr>`;
+<div id="feed-tab" class="tab-panel active">
+  <div class="feed-controls">
+    <select id="feed-action-filter">
+      <option value="">All actions</option>
+      <option value="write">Writes</option>
+      <option value="retrieve">Retrievals</option>
+      <option value="supersede">Supersedes</option>
+      <option value="feedback">Feedback</option>
+    </select>
+    <input id="feed-search" type="text" placeholder="Filter text…" style="flex:1;max-width:200px">
+    <button id="feed-pause">⏸ Pause</button>
+  </div>
+  <div id="feed-list"></div>
+</div>
+
+<div id="memories-tab" class="tab-panel">
+  <div class="feed-controls">
+    <input id="mem-search" type="text" placeholder="Search memories…" style="flex:1;max-width:300px">
+    <select id="mem-type-filter">
+      <option value="">All types</option>
+      <option value="semantic">Semantic</option>
+      <option value="procedural">Procedural</option>
+      <option value="episodic">Episodic</option>
+      <option value="working">Working</option>
+    </select>
+    <button id="mem-search-btn">Search</button>
+    <button id="mem-list-btn">List All</button>
+  </div>
+  <div id="mem-list"></div>
+</div>
+
+<div id="health-tab" class="tab-panel">
+  <div id="health-content"></div>
+</div>
+
+<div id="drawer-overlay" class="drawer-overlay">
+  <div class="drawer" id="drawer">
+    <button class="close-btn" id="drawer-close">×</button>
+    <div id="drawer-content"></div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+let feedPaused = false;
+let feedInterval = null;
+
+// --- Tab switching ---
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab + "-tab").classList.add("active");
+    if (btn.dataset.tab === "feed" && !feedPaused) startFeed();
+    if (btn.dataset.tab === "health") loadHealth();
+    if (btn.dataset.tab === "memories") loadMemories("", "");
+  });
+});
+
+// --- Drawer ---
+function openDrawer(id) {
+  document.getElementById("drawer-overlay").classList.add("open");
+  loadDrawer(id);
 }
-function table(rows) {
-  document.getElementById("out").innerHTML =
-    `<table><tr><th>type</th><th>content</th><th>status</th><th>score</th><th></th></tr>${rows.join("")}</table>`;
+document.getElementById("drawer-close").addEventListener("click", () => {
+  document.getElementById("drawer-overlay").classList.remove("open");
+});
+document.getElementById("drawer-overlay").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) document.getElementById("drawer-overlay").classList.remove("open");
+});
+
+async function loadDrawer(id) {
+  const res = await fetch(`${API}/v1/memories/${id}`);
+  if (!res.ok) { document.getElementById("drawer-content").innerHTML = '<p>Memory not found</p>'; return; }
+  const m = await res.json();
+  const decayPct = Math.round((1 - Math.pow(0.5, daysSince(m.createdAt) / m.decayHalfLifeDays)) * 100);
+  document.getElementById("drawer-content").innerHTML = `
+    <h2>${esc(m.content)}</h2>
+    <div class="field"><span class="field-label">Type</span> ${m.type}</div>
+    <div class="field"><span class="field-label">Status</span> <span class="status-${m.status}">${m.status}</span></div>
+    <div class="field"><span class="field-label">Confidence</span> ${(m.confidence * 100).toFixed(0)}%</div>
+    <div class="field"><span class="field-label">Importance</span> ${(m.importance * 100).toFixed(0)}%</div>
+    <div class="field"><span class="field-label">Decay</span> ${decayPct}% (half-life ${m.decayHalfLifeDays}d)</div>
+    ${m.structured?.entityKey ? `<div class="field"><span class="field-label">Entity Key</span> <code>${m.structured.entityKey}</code></div>` : ""}
+    <div class="field"><span class="field-label">Tags</span> ${(m.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(" ") || "—"}</div>
+    <div class="field"><span class="field-label">Sources</span> ${(m.sourceRefs || []).map(s => `${s.kind}:${s.id}`).join(", ") || "—"}</div>
+    <div class="field"><span class="field-label">Retention</span> ${m.retention.mode}${m.retention.pinReason ? " — " + esc(m.retention.pinReason) : ""}</div>
+    <h3 style="margin-top:16px">Links</h3>
+    ${(m.resolvedLinks || []).map(l => `
+      <div class="feed-item">
+        <span>${l.rel}</span>
+        <span class="detail">
+          <span class="clickable" onclick="openDrawer('${l.targetId}')">${esc(l.targetPreview)}</span>
+          <span class="status-${l.targetStatus}" style="margin-left:4px;font-size:12px">(${l.targetStatus})</span>
+        </span>
+      </div>
+    `).join("") || '<div class="empty">No links</div>'}
+    <h3 style="margin-top:16px">Events</h3>
+    ${(m.events || []).map(e => {
+      const d = typeof e.detail === "string" ? e.detail : JSON.stringify(e.detail);
+      return `<div class="feed-item"><span class="detail">${esc(e.action)}: ${esc(d)}</span><span class="time">${formatTime(e.createdAt)}</span></div>`;
+    }).join("") || '<div class="empty">No events</div>'}
+  `;
 }
-async function search() {
-  const q = document.getElementById("q").value || "*";
-  const type = document.getElementById("type").value;
-  const body = { query: q, limit: 20, includeDisputed: true, ...(type ? { types: [type] } : {}) };
-  const res = await api("/v1/memories/retrieve", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body) });
-  table(res.memories.map((m)=>row(m)));
+
+// --- Feed ---
+const ACTION_ICONS = { write: "✏️", retrieve: "🔍", supersede: "⛓", feedback: "💬", export: "📦", purge: "🗑", job: "⚙️" };
+
+function renderFeedItem(e) {
+  const d = typeof e.detail === "object" ? e.detail : (() => { try { return JSON.parse(e.detail); } catch { return { raw: e.detail }; } })();
+  let text = "";
+  const idLink = d.id ? `<span class="clickable" onclick="openDrawer('${d.id}')">${d.id}</span>` : "";
+  switch (e.action) {
+    case "write":
+      text = `wrote ${d.type} "${esc((d.contentPreview || "").slice(0, 60))}" via ${d.source || "api"}${d.entityKey ? ` (${d.entityKey})` : ""} ${idLink}`;
+      break;
+    case "retrieve":
+      text = `retrieved ${(d.returnedIds || []).length} of ${d.candidateCount || 0} candidates for "${esc(d.query || "")}" (${d.latencyMs || 0}ms)`;
+      break;
+    case "supersede":
+      text = `superseded <span class="clickable" onclick="openDrawer('${d.loserId}')">${(d.loserId || "").slice(0, 12)}</span> via ${d.via || "?"}`;
+      if (d.winnerId) text += ` ← <span class="clickable" onclick="openDrawer('${d.winnerId}')">${(d.winnerId || "").slice(0, 12)}</span>`;
+      break;
+    case "feedback":
+      text = `${d.verdict} on <span class="clickable" onclick="openDrawer('${d.id}')">${(d.id || "").slice(0, 12)}</span>`;
+      break;
+    default:
+      text = esc(d.raw || JSON.stringify(d));
+  }
+  return `<div class="feed-item"><span class="icon">${ACTION_ICONS[e.action] || "•"}</span><span class="detail">${text}</span><span class="time">${formatTime(e.createdAt)}</span></div>`;
 }
-async function listAll() {
-  const res = await api("/v1/memories");
-  table(res.memories.map((m)=>row(m)));
+
+async function loadFeed() {
+  const action = document.getElementById("feed-action-filter").value;
+  const search = document.getElementById("feed-search").value.toLowerCase();
+  const url = `${API}/v1/activity?limit=100${action ? "&action=" + action : ""}`;
+  const res = await fetch(url);
+  const { events } = await res.json();
+  const filtered = search ? events.filter(e => JSON.stringify(e.detail).toLowerCase().includes(search)) : events;
+  document.getElementById("feed-list").innerHTML = filtered.length
+    ? filtered.map(renderFeedItem).join("")
+    : '<div class="empty">No events yet. Write or retrieve some memories.</div>';
 }
-async function aboutMe() {
-  const res = await api("/v1/about-me");
-  const rows = [...res.semantic, ...res.procedural].map((m)=>row(m));
-  document.getElementById("out").innerHTML =
-    `<p><b>${res.semantic.length}</b> facts, <b>${res.procedural.length}</b> preferences, <b>${res.disputedCount}</b> disputed.</p>`;
-  document.getElementById("out").insertAdjacentHTML("beforeend",
-    `<table><tr><th>type</th><th>content</th><th>status</th><th></th><th></th></tr>${rows.join("")}</table>`);
+
+function startFeed() { loadFeed(); feedInterval = setInterval(loadFeed, 3000); }
+function stopFeed() { clearInterval(feedInterval); feedInterval = null; }
+
+document.getElementById("feed-pause").addEventListener("click", () => {
+  feedPaused = !feedPaused;
+  document.getElementById("feed-pause").textContent = feedPaused ? "▶ Resume" : "⏸ Pause";
+  feedPaused ? stopFeed() : startFeed();
+});
+document.getElementById("feed-action-filter").addEventListener("change", loadFeed);
+document.getElementById("feed-search").addEventListener("input", loadFeed);
+
+// --- Memories tab ---
+async function loadMemories(query, type) {
+  let memories;
+  if (query) {
+    const res = await fetch(`${API}/v1/memories/retrieve`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, userId: "local", limit: 20, ...(type ? { types: [type] } : {}) }),
+    });
+    const data = await res.json();
+    memories = data.memories || [];
+  } else {
+    const res = await fetch(`${API}/v1/memories`);
+    const data = await res.json();
+    memories = data.memories || data;
+    if (type) memories = memories.filter(m => m.type === type);
+  }
+  document.getElementById("mem-list").innerHTML = memories.length
+    ? memories.map(m => `
+      <div class="feed-item" style="flex-direction:column;gap:4px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span class="clickable" onclick="openDrawer('${m.id}')">${esc((m.content || "").slice(0, 80))}</span>
+          ${m.qualifier ? `<span class="qualifier">⚠ ${esc(m.qualifier)}</span>` : ""}
+        </div>
+        <div style="display:flex;gap:8px;font-size:12px;color:#8b949e">
+          <span class="tag">${m.type}</span>
+          <span class="status-${m.status}">${m.status}</span>
+          ${m.score != null ? `<span>score: ${m.score.toFixed(3)}</span>` : ""}
+          ${(m.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("")}
+        </div>
+        ${m.scoreBreakdown ? renderScoreBreakdown(m.scoreBreakdown) : ""}
+      </div>
+    `).join("")
+    : '<div class="empty">No memories found</div>';
 }
-async function conflicts() {
-  const res = await api("/v1/conflicts");
-  const rows = res.conflicts.map(({memory:m, contradicts}) =>
-    row(m, contradicts.map((id)=>`<button onclick="resolve('${m.id}','${id}')">keep this, supersede ${id.slice(0,12)}…</button>`).join("")));
-  table(rows);
+
+function renderScoreBreakdown(bd) {
+  const max = 0.5;
+  const bars = [
+    { label: "vector", value: bd.vector || 0, color: "#58a6ff" },
+    { label: "keyword", value: bd.keyword || 0, color: "#3fb950" },
+    { label: "importance", value: bd.importance || 0, color: "#d29922" },
+    { label: "recency", value: bd.recency || 0, color: "#bc8cff" },
+    { label: "decay", value: bd.decay || 0, color: "#f85149" },
+    { label: "conflict", value: bd.conflict || 0, color: "#f85149" },
+  ];
+  return `<div style="display:flex;gap:4px;margin-top:4px">${bars.map(b =>
+    `<div title="${b.label}: ${b.value.toFixed(3)}" style="flex:1"><div class="score-bar"><div class="score-bar-fill" style="width:${Math.min(100, Math.abs(b.value) / max * 100)}%;background:${b.color}"></div></div><div style="font-size:10px;color:#8b949e;text-align:center">${b.label.slice(0, 3)}</div></div>`
+  ).join("")}</div>`;
 }
-async function resolve(winnerId, loserId) {
-  await api("/v1/conflicts/resolve", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ winnerId, loserId }) });
-  conflicts();
+
+document.getElementById("mem-search-btn").addEventListener("click", () => {
+  loadMemories(document.getElementById("mem-search").value, document.getElementById("mem-type-filter").value);
+});
+document.getElementById("mem-list-btn").addEventListener("click", () => {
+  loadMemories("", document.getElementById("mem-type-filter").value);
+});
+document.getElementById("mem-type-filter").addEventListener("change", () => {
+  loadMemories(document.getElementById("mem-search").value, document.getElementById("mem-type-filter").value);
+});
+
+// --- Health tab ---
+async function loadHealth() {
+  const [statsRes, digestRes] = await Promise.all([
+    fetch(`${API}/v1/stats`),
+    fetch(`${API}/v1/digest?maxItems=5`),
+  ]);
+  const stats = await statsRes.json();
+  const digest = await digestRes.json();
+
+  const typeStatusRows = Object.entries(stats.countsByTypeStatus).map(([k, v]) => {
+    const [type, status] = k.split(":");
+    return `<tr><td>${type}</td><td><span class="status-${status}">${status}</span></td><td>${v}</td></tr>`;
+  }).join("");
+
+  const jobRows = Object.entries(stats.lastJobs || {}).map(([kind, info]) => {
+    return `<tr><td>${kind}</td><td>${formatTime(info.updatedAt)}</td><td><pre style="font-size:11px">${esc(JSON.stringify(info.result, null, 0))}</pre></td></tr>`;
+  }).join("");
+
+  document.getElementById("health-content").innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card">
+        <h3>Memory Counts</h3>
+        <table><thead><tr><th>Type</th><th>Status</th><th>Count</th></tr></thead><tbody>${typeStatusRows || "<tr><td colspan='3'>No memories</td></tr>"}</tbody></table>
+      </div>
+      <div class="stat-card">
+        <h3>Embedding Coverage</h3>
+        <p>${stats.embeddingCoverage.withVector} / ${stats.embeddingCoverage.total} memories have vectors</p>
+        <p style="margin-top:8px">Quarantine: ${stats.quarantineCount} items</p>
+      </div>
+      <div class="stat-card">
+        <h3>Last Jobs</h3>
+        <table><thead><tr><th>Kind</th><th>When</th><th>Result</th></tr></thead><tbody>${jobRows || "<tr><td colspan='3'>No jobs run yet</td></tr>"}</tbody></table>
+      </div>
+      <div class="stat-card">
+        <h3>Digest Preview</h3>
+        <p style="white-space:pre-wrap;font-size:13px">${esc(digest.text || "(empty)")}</p>
+      </div>
+    </div>
+  `;
 }
-async function editMem(id) {
-  const content = prompt("New content:");
-  if (!content) return;
-  await api(`/v1/memories/${id}`, { method:"PATCH", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ content }) });
-  listAll();
+
+// --- Utils ---
+function esc(s) { const d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+function formatTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = Date.now();
+  const diff = now - d.getTime();
+  if (diff < 60000) return `${Math.round(diff / 1000)}s ago`;
+  if (diff < 3600000) return `${Math.round(diff / 60000)}m ago`;
+  return d.toLocaleTimeString();
 }
-async function delMem(id) {
-  await api(`/v1/memories/${id}`, { method:"DELETE" });
-  listAll();
-}
-listAll();
+function daysSince(iso) { return (Date.now() - Date.parse(iso)) / 86400000; }
+
+// --- Init ---
+startFeed();
 </script>
 </body>
 </html>
