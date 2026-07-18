@@ -30,6 +30,7 @@ export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
         userId: "local",
         type,
         content,
+        source: "mcp",
         ...(importance !== undefined ? { importance: Math.min(importance, TOOL_MAX_IMPORTANCE) } : {}),
         ...(tags ? { tags } : {}),
         ...(entityKey ? { entityKey } : {}),
