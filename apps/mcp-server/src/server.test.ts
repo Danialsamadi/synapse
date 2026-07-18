@@ -18,7 +18,7 @@ describe("mneme MCP server", () => {
   it("lists both memory tools", async () => {
     const { repo, client } = await connected();
     const { tools } = await client.listTools();
-    assert.deepEqual(tools.map((t) => t.name).sort(), ["memory_digest", "memory_retrieve", "memory_write"]);
+    assert.deepEqual(tools.map((t) => t.name).sort(), ["memory_digest", "memory_feedback", "memory_retrieve", "memory_write"]);
     repo.close();
   });
 
@@ -59,6 +59,18 @@ describe("mneme MCP server", () => {
     const res = await client.callTool({ name: "memory_digest", arguments: {} });
     const out = JSON.parse((res.content as Array<{ text: string }>)[0]!.text) as { text: string };
     assert.match(out.text, /Always answer in French/);
+    repo.close();
+  });
+
+  it("memory_feedback disputes a stale memory", async () => {
+    const { repo, client } = await connected();
+    const m = repo.create({ userId: "local", type: "semantic", content: "User works at Acme Corp" });
+    const res = await client.callTool({
+      name: "memory_feedback",
+      arguments: { id: m.id, verdict: "stale" },
+    });
+    const out = JSON.parse((res.content as Array<{ text: string }>)[0]!.text) as { status: string };
+    assert.equal(out.status, "disputed");
     repo.close();
   });
 });

@@ -118,3 +118,31 @@ describe("MemoryRepository", () => {
     repo.close();
   });
 });
+
+describe("feedback loop", () => {
+  it("touchAccessed sets lastAccessedAt", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({ userId: "local", type: "semantic", content: "fact" });
+    assert.equal(m.lastAccessedAt, undefined);
+    repo.touchAccessed([m.id]);
+    assert.ok(repo.get(m.id)!.lastAccessedAt);
+    repo.close();
+  });
+
+  it("helpful raises confidence; stale/wrong lower it and dispute the memory", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const a = repo.create({ userId: "local", type: "semantic", content: "a" });
+    const b = repo.create({ userId: "local", type: "semantic", content: "b" });
+
+    const helped = repo.applyFeedback(a.id, "helpful")!;
+    assert.ok(Math.abs(helped.confidence - 0.8) < 1e-9);
+    assert.equal(helped.status, "active");
+
+    const staled = repo.applyFeedback(b.id, "stale")!;
+    assert.ok(Math.abs(staled.confidence - 0.4) < 1e-9);
+    assert.equal(staled.status, "disputed");
+
+    assert.equal(repo.applyFeedback("nope", "helpful"), null);
+    repo.close();
+  });
+});

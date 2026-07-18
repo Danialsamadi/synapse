@@ -75,6 +75,7 @@ export class RetrievalService {
     scored.sort((a, b) => b.score - a.score);
     let top = scored.slice(0, req.limit).map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req, now));
     if (req.tokenBudget) top = packByTokenBudget(top, req.tokenBudget);
+    this.repo.touchAccessed(top.map((m) => m.id));
     return {
       memories: top,
       stats: { candidateCount: candidates.length, latencyMs: Math.round(performance.now() - start) },

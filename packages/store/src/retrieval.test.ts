@@ -73,6 +73,18 @@ describe("RetrievalService", () => {
     assert.equal(res.memories[0]?.id, sem.id);
     repo.close();
   });
+
+  it("retrieve touches lastAccessedAt on returned memories", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const svc = new RetrievalService(repo, embedder);
+    const m = repo.create({ userId: "local", type: "semantic", content: "user prefers typescript" });
+    const [v] = await embedder.embed([m.content]);
+    if (v) repo.saveEmbedding(m.id, v, embedder.model);
+    await svc.retrieve({ query: "typescript preference", userId: "local", limit: 5 });
+    assert.ok(repo.get(m.id)!.lastAccessedAt);
+    repo.close();
+  });
 });
 
 describe("digest", () => {

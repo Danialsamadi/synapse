@@ -75,5 +75,21 @@ export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
     async ({ maxItems }) => json(retrieval.digest("local", maxItems ?? 12)),
   );
 
+  server.registerTool(
+    "memory_feedback",
+    {
+      description:
+        "Report whether a retrieved memory was accurate. Call with verdict 'stale' or 'wrong' when the user corrects something you recalled, and 'helpful' when a retrieved memory proved correct and useful.",
+      inputSchema: {
+        id: z.string().min(1),
+        verdict: z.enum(["helpful", "stale", "wrong"]),
+      },
+    },
+    async ({ id, verdict }) => {
+      const memory = repo.applyFeedback(id, verdict);
+      return memory ? json(memory) : json({ error: "not_found", id });
+    },
+  );
+
   return server;
 }

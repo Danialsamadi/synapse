@@ -258,6 +258,28 @@ export class MemoryRepository {
     this.db.prepare(`DELETE FROM embeddings WHERE memory_id = ?`).run(memoryId);
   }
 
+  touchAccessed(ids: string[]): void {
+    if (ids.length === 0) return;
+    const now = new Date().toISOString();
+    const stmt = this.db.prepare(`UPDATE memories SET last_accessed_at = ? WHERE id = ?`);
+    const tx = this.db.transaction((list: string[]) => {
+      for (const id of list) stmt.run(now, id);
+    });
+    tx(ids);
+  }
+
+  /** Agent-reported verdict on a retrieved memory. helpful: +0.1 confidence. stale/wrong: -0.3 and disputed. */
+  applyFeedback(id: string, verdict: "helpful" | "stale" | "wrong"): Memory | null {
+    const m = this.get(id);
+    if (!m) return null;
+    const next =
+      verdict === "helpful"
+        ? this.update(id, { confidence: Math.min(1, m.confidence + 0.1) })
+        : this.update(id, { confidence: Math.max(0, m.confidence - 0.3), status: "disputed" });
+    this.addAudit("feedback", JSON.stringify({ id, verdict }));
+    return next;
+  }
+
   createJob(kind: string, payload?: unknown): JobRow {
     const now = new Date().toISOString();
     const row: JobRow = {
