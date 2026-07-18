@@ -8,7 +8,7 @@
 
 > Chat history is a log. Mneme is a brain.
 
-Mneme is a **local-first personal memory operating system** that gives AI agents durable, typed long-term memory. It extracts semantic facts from episodic conversations, detects and resolves conflicts, decays stale information, and retrieves relevant memories with a hybrid scoring pipeline — all running on local SQLite with full user control over export and purge.
+Mneme is a **local-first personal memory operating system** that gives AI agents durable, typed long-term memory. It extracts semantic facts from episodic conversations, anchors single-current-value facts to entity keys so new values supersede old ones, detects and resolves conflicts, decays stale information, and retrieves with a hybrid scoring pipeline that attaches trust qualifiers and learns from agent feedback — all on local SQLite with full user control over export and purge. An always-on digest covers what retrieval can't: the facts an agent should just know at session start.
 
 ## Architecture
 
@@ -22,8 +22,10 @@ flowchart TB
     end
 
     subgraph Tools["Memory tools (Zod-validated, importance-capped)"]
-        W["memory_write"]
-        R["memory_retrieve"]
+        W["memory_write<br/>+ entityKey supersession"]
+        R["memory_retrieve<br/>+ trust qualifiers"]
+        D["memory_digest<br/>always-on core memory"]
+        F["memory_feedback<br/>helpful / stale / wrong"]
     end
 
     API["HTTP API (Hono)<br/>/v1/memories · /v1/jobs · /v1/conflicts · /v1/export · /v1/purge"]
@@ -39,7 +41,7 @@ flowchart TB
         LLM["LLM<br/>OpenAI-compatible · FakeLlm for tests"]
     end
 
-    MCP --> W & R
+    MCP --> W & R & D & F
     SDK --> W & R
     W & R --> API
     CLI --> Store
@@ -81,6 +83,22 @@ score = 0.40·vector + 0.20·keyword + 0.15·importance
 
 Weights defined in `DEFAULT_RANK_WEIGHTS` (`packages/core/src/scoring.ts`). Retrieval is 100% non-LLM; the LLM is used only in consolidation and conflict detection.
 
+Retrieval also closes the loop instead of being a one-way pipe:
+
+- **Trust qualifiers** — each result may carry a `qualifier` string ("stored 8 months ago — may be outdated; disputed by a conflicting memory; low confidence") so the consuming LLM can hedge instead of confidently asserting stale facts.
+- **Touch-on-retrieve** — returned memories get their `lastAccessedAt` bumped, so memories that keep proving relevant rank higher over time via the recency term.
+
+## Memory tools (MCP)
+
+| Tool | What it does |
+|------|--------------|
+| `memory_write` | Store a typed memory (episodic / semantic / procedural). Pass `entityKey` (e.g. `user.employer`) for single-current-value facts — a new value automatically supersedes the old one instead of coexisting with it. |
+| `memory_retrieve` | Hybrid-scored recall with trust qualifiers on each result. |
+| `memory_digest` | Always-on core memory: pinned + most important facts as one capped block. Call once at session start — the "agent should just know this" layer that pure retrieval misses. |
+| `memory_feedback` | Report a retrieved memory as `helpful`, `stale`, or `wrong`. Helpful raises confidence (and re-activates a disputed memory); stale/wrong lowers it and marks the memory disputed, hiding it from default retrieval. |
+
+**Entity anchoring** fixes the classic staleness bug ("I work at Acme Corp" retrieved three months after you switched jobs): facts with an `entityKey` behave like a current-value slot, not an append-only log. The consolidation job emits entity keys too, so facts extracted from conversation get the same treatment. Superseded values stay in history (`status: superseded`, linked via `supersedes`) — nothing is silently lost.
+
 ## Quick start
 
 ```bash
@@ -103,7 +121,7 @@ open http://localhost:8787/inspector
 
 ## Use from any AI agent
 
-Mneme exposes `memory_write` / `memory_retrieve` over MCP. Any MCP-capable agent can use it — verified live with Claude Code (write in one session, recall in a fresh one).
+Mneme exposes `memory_write`, `memory_retrieve`, `memory_digest`, and `memory_feedback` over MCP. Any MCP-capable agent can use it — verified live with Claude Code (write in one session, recall in a fresh one).
 
 **Claude Code:**
 
@@ -166,7 +184,9 @@ Every provider path shares the same guards: Zod validation on all inputs and age
 | Stale-fact rate | 0.000 |
 | Pass rate | 0.969 |
 
-Lifecycle test proves the full pipeline: episode → extraction → conflict detection → supersession → retrieval excludes stale fact.
+Lifecycle tests prove the full pipeline: episode → extraction → conflict detection (or `entityKey` supersession) → retrieval excludes the stale fact.
+
+Behavioral evals go beyond retrieval ranking and test outcomes — the failure modes most memory systems never measure: does an entity update actually replace the old fact at retrieval time, does stale feedback demote a memory out of default retrieval and out of the digest, do disputed results carry a warning qualifier, does repeated feedback converge confidence instead of oscillating.
 
 ## Privacy
 
