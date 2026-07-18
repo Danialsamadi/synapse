@@ -55,4 +55,21 @@ describe("consolidate", () => {
     assert.equal(active[0]!.content, "User lives in Vancouver");
     repo.close();
   });
+
+  it("consolidate logs a job audit event on completion", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    repo.create({ userId: "local", type: "episodic", content: "moved to Vancouver" });
+    const reply = JSON.stringify({
+      facts: [{ content: "User lives in Vancouver", confidence: 0.9, tags: ["location"], supportingEpisodeIds: [] }],
+    });
+    const llm = new FakeLlm([reply]);
+    await consolidate(repo, embedder, llm);
+    const events = repo.listAudit("job");
+    assert.ok(events.length >= 1);
+    const detail = JSON.parse(events[events.length - 1]!.detail);
+    assert.equal(detail.kind, "consolidate");
+    assert.ok(typeof detail.factsAdded === "number");
+    repo.close();
+  });
 });

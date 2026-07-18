@@ -85,5 +85,6 @@ export async function consolidate(
     result.conflicts += conflict.conflicts;
     result.factsAdded++;
   }
+  repo.addAudit("job", JSON.stringify({ kind: "consolidate", ...result }));
   return result;
 }

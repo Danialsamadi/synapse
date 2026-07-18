@@ -53,4 +53,19 @@ describe("conflict engine", () => {
     assert.equal(out.conflicts, 0);
     repo.close();
   });
+
+  it("auto-supersede logs a supersede audit event", async () => {
+    const { repo, embedder, mk } = await seed();
+    const toronto = await mk("User lives in Toronto");
+    const vancouver = await mk("User lives in Vancouver");
+    const llm = new FakeLlm(["YES"]);
+    await detectAndResolve(repo, embedder, llm, vancouver, "auto_supersede_newest");
+    const events = repo.listAudit("supersede");
+    assert.ok(events.length >= 1);
+    const detail = JSON.parse(events[events.length - 1]!.detail);
+    assert.equal(detail.winnerId, vancouver.id);
+    assert.equal(detail.loserId, toronto.id);
+    assert.equal(detail.via, "conflict");
+    repo.close();
+  });
 });

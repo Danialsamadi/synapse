@@ -47,6 +47,11 @@ export async function detectAndResolve(
       repo.addLink(newFact.id, old.id, "supersedes");
       repo.update(old.id, { status: "superseded" });
       out.superseded.push(old.id);
+      repo.addAudit("supersede", JSON.stringify({
+        winnerId: newFact.id,
+        loserId: old.id,
+        via: "conflict",
+      }));
     } else {
       repo.update(old.id, { status: "disputed" });
       repo.update(newFact.id, { status: "disputed" });
