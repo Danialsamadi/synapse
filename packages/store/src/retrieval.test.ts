@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { HashEmbeddingProvider } from "@mneme/embeddings";
 import { MemoryRepository } from "./memory-repository.js";
-import { RetrievalService } from "./retrieval.js";
+import { RetrievalService, qualifierFor } from "./retrieval.js";
 import type { Memory } from "@mneme/core";
 
 async function seeded() {
@@ -94,5 +94,27 @@ describe("digest", () => {
     assert.match(d.text, /- \[procedural\] always answer in French/);
     assert.doesNotMatch(d.text, /scratch state/);
     repo.close();
+  });
+});
+
+describe("qualifierFor", () => {
+  const base = (over: Partial<Memory>): Memory => ({
+    id: "m1", userId: "local", type: "semantic", status: "active",
+    content: "x", importance: 0.5, confidence: 0.9, decayHalfLifeDays: 180,
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    sourceRefs: [], links: [], tags: [], retention: { mode: "default" },
+    ...over,
+  });
+
+  it("is undefined for a fresh, confident, active memory", () => {
+    assert.equal(qualifierFor(base({}), new Date()), undefined);
+  });
+
+  it("flags old age, disputed status, and low confidence", () => {
+    const old = new Date(Date.now() - 240 * 86400_000).toISOString();
+    const q = qualifierFor(base({ createdAt: old, status: "disputed", confidence: 0.3 }), new Date());
+    assert.match(q!, /stored 8 months ago/);
+    assert.match(q!, /disputed/);
+    assert.match(q!, /low confidence/);
   });
 });

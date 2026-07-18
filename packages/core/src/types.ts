@@ -122,6 +122,7 @@ export const RetrievedMemorySchema = z.object({
   status: MemoryStatusSchema,
   evidence: z.array(SourceRefSchema).optional(),
   conflictsWith: z.array(z.string()).optional(),
+  qualifier: z.string().optional(),
 });
 export type RetrievedMemory = z.infer<typeof RetrievedMemorySchema>;
 

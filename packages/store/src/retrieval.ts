@@ -73,7 +73,7 @@ export class RetrievalService {
     });
 
     scored.sort((a, b) => b.score - a.score);
-    let top = scored.slice(0, req.limit).map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req));
+    let top = scored.slice(0, req.limit).map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req, now));
     if (req.tokenBudget) top = packByTokenBudget(top, req.tokenBudget);
     return {
       memories: top,
@@ -95,8 +95,10 @@ function toRetrieved(
   score: number,
   breakdown: Record<string, number>,
   req: RetrieveRequest,
+  now: Date,
 ): RetrievedMemory {
   const conflicts = m.links.filter((l) => l.rel === "contradicts").map((l) => l.targetId);
+  const qualifier = qualifierFor(m, now);
   return {
     id: m.id,
     type: m.type,
@@ -106,5 +108,16 @@ function toRetrieved(
     status: m.status,
     ...(req.includeEvidence ? { evidence: m.sourceRefs } : {}),
     ...(conflicts.length > 0 ? { conflictsWith: conflicts } : {}),
+    ...(qualifier ? { qualifier } : {}),
   };
+}
+
+/** Human-readable trust hints for the consuming LLM; undefined when fresh + confident. */
+export function qualifierFor(m: Memory, now: Date): string | undefined {
+  const parts: string[] = [];
+  const days = ageDays(m.createdAt, now);
+  if (days > 90) parts.push(`stored ${Math.round(days / 30)} months ago — may be outdated`);
+  if (m.status === "disputed") parts.push("disputed by a conflicting memory");
+  if (m.confidence < 0.5) parts.push("low confidence");
+  return parts.length > 0 ? parts.join("; ") : undefined;
 }
