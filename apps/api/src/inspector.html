@@ -204,7 +204,7 @@ async function loadDrawer(id) {
     <div class="field"><span class="field-label">Confidence</span> ${(m.confidence * 100).toFixed(0)}%</div>
     <div class="field"><span class="field-label">Importance</span> ${(m.importance * 100).toFixed(0)}%</div>
     <div class="field"><span class="field-label">Decay</span> ${decayPct}% (half-life ${m.decayHalfLifeDays}d)</div>
-    ${m.structured?.entityKey ? `<div class="field"><span class="field-label">Entity key</span> <code>${m.structured.entityKey}</code></div>` : ""}
+    ${m.structured?.entityKey ? `<div class="field"><span class="field-label">Entity key</span> <code>${esc(m.structured.entityKey)}</code></div>` : ""}
     <div class="field"><span class="field-label">Tags</span> ${(m.tags || []).map(t => `<span class="tag">${esc(t)}</span>`).join(" ") || "—"}</div>
     <div class="field"><span class="field-label">Sources</span> ${(m.sourceRefs || []).map(s => `${s.kind}:${s.id}`).join(", ") || "—"}</div>
     <div class="field"><span class="field-label">Retention</span> ${m.retention.mode}${m.retention.pinReason ? " — " + esc(m.retention.pinReason) : ""}</div>
@@ -233,7 +233,7 @@ function renderFeedItem(e) {
   const idLink = d.id ? `<span class="clickable" onclick="openDrawer('${d.id}')">${d.id}</span>` : "";
   switch (e.action) {
     case "write":
-      text = `wrote ${d.type} "${esc((d.contentPreview || "").slice(0, 60))}" via ${d.source || "api"}${d.entityKey ? ` (${d.entityKey})` : ""} ${idLink}`;
+      text = `wrote ${esc(d.type)} "${esc((d.contentPreview || "").slice(0, 60))}" via ${esc(d.source || "api")}${d.entityKey ? ` (${esc(d.entityKey)})` : ""} ${idLink}`;
       break;
     case "retrieve":
       text = `retrieved ${(d.returnedIds || []).length} of ${d.candidateCount || 0} candidates for "${esc(d.query || "")}" (${d.latencyMs || 0}ms)`;

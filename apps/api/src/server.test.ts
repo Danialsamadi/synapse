@@ -16,7 +16,7 @@ before(async () => {
   server = await createServer(repo, { port });
   // Get the actual port from the server
   const addr = server.address();
-  baseUrl = `http://localhost:${addr !== null && typeof addr === "object" ? addr.port : port}`;
+  baseUrl = `http://127.0.0.1:${addr !== null && typeof addr === "object" ? addr.port : port}`;
 });
 
 after(() => {
@@ -70,5 +70,56 @@ describe("GET /v1/memories/:id (extended)", () => {
     assert.equal(body.resolvedLinks[0]!.rel, "supports");
     assert.ok(typeof body.resolvedLinks[0]!.targetPreview === "string");
     assert.ok(Array.isArray(body.events));
+  });
+});
+
+describe("error handling", () => {
+  it("invalid body → 400 invalid_input, not 500", async () => {
+    const res = await fetch(`${baseUrl}/v1/memories`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "bogus", content: "" }),
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json() as { error: string };
+    assert.equal(body.error, "invalid_input");
+  });
+
+  it("malformed JSON → 400 invalid_json", async () => {
+    const res = await fetch(`${baseUrl}/v1/memories`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: "{not json",
+    });
+    assert.equal(res.status, 400);
+  });
+});
+
+describe("GET /v1/activity limit clamping", () => {
+  it("non-numeric limit does not return the whole table unbounded", async () => {
+    const res = await fetch(`${baseUrl}/v1/activity?limit=abc`);
+    assert.equal(res.status, 200);
+    const body = await res.json() as { events: unknown[] };
+    assert.ok(body.events.length <= 500);
+  });
+});
+
+describe("token auth", () => {
+  it("rejects wrong token and accepts the right one (constant-time)", async () => {
+    const authedRepo = new MemoryRepository({ path: ":memory:" });
+    process.env.MNEME_TOKEN = "s3cret-token";
+    const authed = await createServer(authedRepo, { port: 0 });
+    const addr = authed.address();
+    const url = `http://127.0.0.1:${addr !== null && typeof addr === "object" ? addr.port : 0}`;
+    try {
+      const noAuth = await fetch(`${url}/v1/memories`);
+      assert.equal(noAuth.status, 401);
+      const wrong = await fetch(`${url}/v1/memories`, { headers: { Authorization: "Bearer nope" } });
+      assert.equal(wrong.status, 401);
+      const ok = await fetch(`${url}/v1/memories`, { headers: { Authorization: "Bearer s3cret-token" } });
+      assert.equal(ok.status, 200);
+    } finally {
+      authed.close();
+      authedRepo.close();
+      delete process.env.MNEME_TOKEN;
+    }
   });
 });

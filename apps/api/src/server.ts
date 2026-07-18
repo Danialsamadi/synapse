@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { readFileSync } from "node:fs";
 import { mkdirSync } from "node:fs";
+import { timingSafeEqual } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -14,7 +15,7 @@ import {
 import { MemoryRepository, RetrievalService, consolidate, createEmbedder, createLlm, runDecay } from "@mneme/store";
 import type { JobRow } from "@mneme/store";
 
-export async function createServer(repo?: MemoryRepository, opts?: { port?: number }) {
+export async function createServer(repo?: MemoryRepository, opts?: { port?: number; hostname?: string }) {
   const repository = repo ?? (() => {
     const path = process.env.MNEME_DB ?? resolve(process.cwd(), ".mneme", "mneme.db");
     mkdirSync(dirname(path), { recursive: true });
@@ -24,6 +25,18 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
   const retrieval = new RetrievalService(repository, embedder);
   const llm = createLlm();
   const app = new Hono();
+
+  // Never leak internals: validation failures → 400, everything else → generic 500.
+  app.onError((err, c) => {
+    if (err instanceof z.ZodError) {
+      return c.json({ error: "invalid_input", issues: err.issues }, 400);
+    }
+    if (err instanceof SyntaxError) {
+      return c.json({ error: "invalid_json" }, 400);
+    }
+    console.error(JSON.stringify({ evt: "error", path: c.req.path, message: String(err) }));
+    return c.json({ error: "internal_error" }, 500);
+  });
 
   const inspectorHtml = readFileSync(
     fileURLToPath(new URL("./inspector.html", import.meta.url)),
@@ -47,8 +60,11 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
 
   const token = process.env.MNEME_TOKEN;
   if (token) {
+    const expected = Buffer.from(`Bearer ${token}`);
     app.use("/v1/*", async (c, next) => {
-      if (c.req.header("Authorization") !== `Bearer ${token}`) {
+      const got = Buffer.from(c.req.header("Authorization") ?? "");
+      // Length check first: timingSafeEqual throws on unequal lengths.
+      if (got.length !== expected.length || !timingSafeEqual(got, expected)) {
         return c.json({ error: "unauthorized" }, 401);
       }
       await next();
@@ -208,7 +224,8 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
   // --- New inspector endpoints ---
 
   app.get("/v1/activity", (c) => {
-    const limit = Number(c.req.query("limit") ?? "100");
+    const raw = Number(c.req.query("limit") ?? "100");
+    const limit = Number.isFinite(raw) ? Math.min(Math.max(1, Math.trunc(raw)), 500) : 100;
     const action = c.req.query("action");
     const events = repository.listAudit(action, limit).map((e) => ({
       ...e,
@@ -242,7 +259,18 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
   });
 
   const port = opts?.port ?? Number(process.env.PORT ?? 8787);
-  const server = serve({ fetch: app.fetch, port });
+  // Default to loopback so export/purge aren't exposed to the LAN. Opt into
+  // wider exposure with MNEME_HOST=0.0.0.0 (and set MNEME_TOKEN when you do).
+  const hostname = opts?.hostname ?? process.env.MNEME_HOST ?? "127.0.0.1";
+  if (!token && hostname !== "127.0.0.1" && hostname !== "localhost") {
+    console.warn(
+      "WARNING: mneme-api is bound to a non-loopback address with no MNEME_TOKEN set — " +
+        "/v1/export and /v1/purge are reachable unauthenticated. Set MNEME_TOKEN.",
+    );
+  }
+  const server = await new Promise<ReturnType<typeof serve>>((res) => {
+    const s = serve({ fetch: app.fetch, port, hostname }, () => res(s));
+  });
   return server;
 }
 
