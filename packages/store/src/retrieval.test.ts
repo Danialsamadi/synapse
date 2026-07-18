@@ -109,6 +109,50 @@ describe("digest", () => {
   });
 });
 
+describe("digest edge cases", () => {
+  it("empty store returns empty items and text", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+    const d = svc.digest("local");
+    assert.deepEqual(d.items, []);
+    assert.equal(d.text, "");
+    repo.close();
+  });
+
+  it("excludes non-active memories even when pinned", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+    const pinned = repo.create({
+      userId: "local", type: "semantic", content: "pinned but stale",
+      retention: { mode: "pinned", pinReason: "test" },
+    });
+    repo.applyFeedback(pinned.id, "stale"); // → disputed
+    const superseded = repo.create({ userId: "local", type: "semantic", content: "old value" });
+    repo.update(superseded.id, { status: "superseded" });
+
+    const d = svc.digest("local");
+    assert.deepEqual(d.items, []);
+    repo.close();
+  });
+
+  it("truncates deterministically when pinned memories exceed maxItems", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+    for (let i = 0; i < 4; i++) {
+      repo.create({
+        userId: "local", type: "semantic", content: `pinned fact ${i}`,
+        retention: { mode: "pinned", pinReason: "test" },
+      });
+    }
+    const a = svc.digest("local", 2);
+    const b = svc.digest("local", 2);
+    assert.equal(a.items.length, 2);
+    assert.deepEqual(a.items.map((i) => i.id), b.items.map((i) => i.id));
+    assert.ok(a.items.every((i) => i.content.startsWith("pinned fact")));
+    repo.close();
+  });
+});
+
 describe("qualifierFor", () => {
   const base = (over: Partial<Memory>): Memory => ({
     id: "m1", userId: "local", type: "semantic", status: "active",
@@ -128,5 +172,56 @@ describe("qualifierFor", () => {
     assert.match(q!, /stored 8 months ago/);
     assert.match(q!, /disputed/);
     assert.match(q!, /low confidence/);
+  });
+
+  it("boundary values do not trigger warnings (exactly 90 days, exactly 0.5 confidence)", () => {
+    const now = new Date();
+    const exactly90 = new Date(now.getTime() - 90 * 86400_000).toISOString();
+    assert.equal(qualifierFor(base({ createdAt: exactly90, confidence: 0.5 }), now), undefined);
+    const past90 = new Date(now.getTime() - 91 * 86400_000).toISOString();
+    assert.match(qualifierFor(base({ createdAt: past90 }), now)!, /may be outdated/);
+    assert.match(qualifierFor(base({ confidence: 0.49 }), now)!, /low confidence/);
+  });
+});
+
+describe("touch-on-retrieve affects ranking", () => {
+  it("an accessed old memory gets a higher recency contribution than an untouched sibling", async () => {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { default: Database } = await import("better-sqlite3");
+
+    const dir = mkdtempSync(join(tmpdir(), "mneme-test-"));
+    const path = join(dir, "t.db");
+    const repo = new MemoryRepository({ path });
+    const embedder = new HashEmbeddingProvider();
+    const svc = new RetrievalService(repo, embedder);
+
+    const write = async (content: string) => {
+      const m = repo.create({ userId: "local", type: "semantic", content });
+      const [v] = await embedder.embed([content]);
+      if (v) repo.saveEmbedding(m.id, v, embedder.model);
+      return m;
+    };
+    const touched = await write("User prefers TypeScript for backend work");
+    const untouched = await write("User prefers TypeScript for frontend work");
+
+    // Age both memories 60 days via a direct connection — createdAt is not settable through the API.
+    const raw = new Database(path);
+    const old = new Date(Date.now() - 60 * 86400_000).toISOString();
+    raw.prepare(`UPDATE memories SET created_at = ?, last_accessed_at = NULL`).run(old);
+    raw.close();
+
+    repo.touchAccessed([touched.id]);
+    const res = await svc.retrieve({ query: "typescript preference", userId: "local", limit: 5 });
+    const t = res.memories.find((m) => m.id === touched.id);
+    const u = res.memories.find((m) => m.id === untouched.id);
+    assert.ok(t && u, "both memories retrieved");
+    assert.ok(
+      (t.scoreBreakdown?.recency ?? 0) > (u.scoreBreakdown?.recency ?? 0),
+      `touched recency ${t.scoreBreakdown?.recency} must beat untouched ${u.scoreBreakdown?.recency}`,
+    );
+    repo.close();
+    rmSync(dir, { recursive: true, force: true });
   });
 });

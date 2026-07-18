@@ -64,4 +64,28 @@ describe("behavioral: truth shifts over time", () => {
     assert.ok(repo.get(bad.id)!.confidence <= 0.1);
     repo.close();
   });
+
+  it("entity supersession removes the old fact from the digest", async () => {
+    const { repo, svc, write } = await seeded();
+    await write("User works at Acme Corp", "user.employer");
+    assert.match(svc.digest("local").text, /Acme Corp/);
+
+    await write("User works at Initech", "user.employer");
+    const d = svc.digest("local");
+    assert.match(d.text, /Initech/);
+    assert.doesNotMatch(d.text, /Acme Corp/);
+    repo.close();
+  });
+
+  it("stale feedback on a high-importance memory removes it from the digest", async () => {
+    const { repo, svc } = await seeded();
+    const m = repo.create({
+      userId: "local", type: "semantic", content: "User is a vim user", importance: 0.9,
+    });
+    assert.match(svc.digest("local").text, /vim user/);
+
+    repo.applyFeedback(m.id, "stale");
+    assert.doesNotMatch(svc.digest("local").text, /vim user/);
+    repo.close();
+  });
 });

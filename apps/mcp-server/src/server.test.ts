@@ -89,4 +89,38 @@ describe("mneme MCP server", () => {
     assert.equal(active[0]!.content, "User lives in Vancouver");
     repo.close();
   });
+
+  it("memory_retrieve surfaces the qualifier field", async () => {
+    const { repo, client } = await connected();
+    const m = repo.create({
+      userId: "local", type: "semantic", content: "User might be allergic to peanuts", confidence: 0.3,
+    });
+    const embedder = (await import("@mneme/store")).createEmbedder();
+    const [v] = await embedder.embed([m.content]);
+    if (v) repo.saveEmbedding(m.id, v, embedder.model);
+
+    const res = await client.callTool({
+      name: "memory_retrieve",
+      arguments: { query: "peanut allergy" },
+    });
+    const out = JSON.parse((res.content as Array<{ text: string }>)[0]!.text) as {
+      memories: Array<{ id: string; qualifier?: string }>;
+    };
+    const hit = out.memories.find((x) => x.id === m.id);
+    assert.ok(hit, "memory retrieved");
+    assert.match(hit.qualifier ?? "", /low confidence/);
+    repo.close();
+  });
+
+  it("memory_feedback on an unknown id returns not_found, not an error", async () => {
+    const { repo, client } = await connected();
+    const res = await client.callTool({
+      name: "memory_feedback",
+      arguments: { id: "mem_does_not_exist", verdict: "helpful" },
+    });
+    assert.notEqual(res.isError, true);
+    const out = JSON.parse((res.content as Array<{ text: string }>)[0]!.text) as { error: string };
+    assert.equal(out.error, "not_found");
+    repo.close();
+  });
 });

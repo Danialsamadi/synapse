@@ -265,6 +265,15 @@ export class MemoryRepository {
     return rows.map((r) => ({ id: r.id, kind: r.kind, payload: r.payload, error: r.error, createdAt: r.created_at }));
   }
 
+  listAudit(action?: string): Array<{ id: number; action: string; detail: string; createdAt: string }> {
+    const rows = (
+      action
+        ? this.db.prepare(`SELECT * FROM audit_log WHERE action = ? ORDER BY id`).all(action)
+        : this.db.prepare(`SELECT * FROM audit_log ORDER BY id`).all()
+    ) as Array<{ id: number; action: string; detail: string; created_at: string }>;
+    return rows.map((r) => ({ id: r.id, action: r.action, detail: r.detail, createdAt: r.created_at }));
+  }
+
   addAudit(action: string, detail: string): void {
     this.db
       .prepare(`INSERT INTO audit_log (action, detail, created_at) VALUES (?, ?, ?)`)

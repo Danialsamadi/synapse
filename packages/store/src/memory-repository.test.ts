@@ -146,6 +146,16 @@ describe("feedback loop", () => {
     repo.close();
   });
 
+  it("feedback writes an audit-log entry", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({ userId: "local", type: "semantic", content: "audited fact" });
+    repo.applyFeedback(m.id, "stale");
+    const entries = repo.listAudit("feedback");
+    assert.equal(entries.length, 1);
+    assert.deepEqual(JSON.parse(entries[0]!.detail), { id: m.id, verdict: "stale" });
+    repo.close();
+  });
+
   it("helpful restores a disputed memory to active", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const m = repo.create({ userId: "local", type: "semantic", content: "redeemed fact" });
@@ -209,6 +219,72 @@ describe("entity anchoring", () => {
     assert.equal(r.memory.structured?.entityKey, "user.location");
     assert.deepEqual(r.supersededIds, [rival.memory.id]);
     assert.equal(repo.get(rival.memory.id)!.status, "superseded");
+    repo.close();
+  });
+
+  it("different entityKeys never interfere", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const employer = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User works at Acme", entityKey: "user.employer",
+    });
+    const location = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User lives in Toronto", entityKey: "user.location",
+    });
+    assert.deepEqual(location.supersededIds, []);
+    assert.equal(repo.get(employer.memory.id)!.status, "active");
+    repo.close();
+  });
+
+  it("entityKey supersession is isolated per user", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const alice = repo.createWithEntitySupersede({
+      userId: "alice", type: "semantic", content: "Works at Acme", entityKey: "user.employer",
+    });
+    const bob = repo.createWithEntitySupersede({
+      userId: "bob", type: "semantic", content: "Works at Initech", entityKey: "user.employer",
+    });
+    assert.deepEqual(bob.supersededIds, []);
+    assert.equal(repo.get(alice.memory.id)!.status, "active");
+    assert.equal(repo.get(bob.memory.id)!.status, "active");
+    repo.close();
+  });
+
+  it("entity supersession overrides a pin — truth changes beat retention", () => {
+    // ponytail: deliberate — a superseded fact is wrong, and wrong facts don't
+    // deserve pin protection. Revisit if pins ever mean "immutable".
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const pinnedOld = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User works at Acme",
+      entityKey: "user.employer", retention: { mode: "pinned", pinReason: "test" },
+    });
+    const next = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User works at Initech", entityKey: "user.employer",
+    });
+    assert.deepEqual(next.supersededIds, [pinnedOld.memory.id]);
+    assert.equal(repo.get(pinnedOld.memory.id)!.status, "superseded");
+    repo.close();
+  });
+
+  it("resurrecting a previously superseded value creates a fresh active memory", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const toronto1 = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User lives in Toronto", entityKey: "user.location",
+    });
+    const vancouver = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User lives in Vancouver", entityKey: "user.location",
+    });
+    // "Moved back": old Toronto row is superseded, so dedupe (active-only) misses it.
+    const toronto2 = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User lives in Toronto", entityKey: "user.location",
+    });
+    assert.equal(toronto2.deduped, false);
+    assert.notEqual(toronto2.memory.id, toronto1.memory.id);
+    assert.deepEqual(toronto2.supersededIds, [vancouver.memory.id]);
+
+    const active = repo.findActiveByEntityKey("local", "user.location");
+    assert.deepEqual(active.map((m) => m.id), [toronto2.memory.id]);
+    assert.equal(repo.get(toronto1.memory.id)!.status, "superseded");
+    assert.equal(repo.get(vancouver.memory.id)!.status, "superseded");
     repo.close();
   });
 });

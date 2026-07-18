@@ -40,4 +40,43 @@ describe("lifecycle: episode → extraction → conflict → supersession → re
 
     repo.close();
   });
+
+  it("entityKey path: consolidation supersedes the anchored fact without needing conflict detection", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const retrieval = new RetrievalService(repo, embedder);
+
+    const { memory: acme } = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User works at Acme Corp", entityKey: "user.employer",
+    });
+    const [av] = await embedder.embed([acme.content]);
+    if (av) repo.saveEmbedding(acme.id, av, embedder.model);
+
+    const episode = repo.create({
+      userId: "local", type: "episodic", content: "User mentioned they just started a new job at Initech",
+    });
+    const [ev] = await embedder.embed([episode.content]);
+    if (ev) repo.saveEmbedding(episode.id, ev, embedder.model);
+
+    const reply = JSON.stringify({
+      facts: [{
+        content: "User works at Initech", confidence: 0.9, tags: ["work"],
+        supportingEpisodeIds: [episode.id], entityKey: "user.employer",
+      }],
+    });
+    const llm = new FakeLlm([reply, "NO"]);
+
+    const result = await consolidate(repo, embedder, llm);
+    assert.equal(result.factsAdded, 1);
+    assert.equal(repo.get(acme.id)?.status, "superseded");
+
+    const active = repo.findActiveByEntityKey("local", "user.employer");
+    assert.equal(active.length, 1);
+    assert.equal(active[0]!.content, "User works at Initech");
+
+    const res = await retrieval.retrieve({ query: "where does the user work", userId: "local", limit: 5 });
+    assert.ok(!res.memories.some((m) => m.id === acme.id), "stale employer must not surface");
+
+    repo.close();
+  });
 });
