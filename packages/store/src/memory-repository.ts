@@ -45,7 +45,7 @@ export class MemoryRepository {
   }
 
   create(raw: CreateMemoryInput): Memory {
-    const input = CreateMemoryInputSchema.parse(raw);
+    const { entityKey: _ignored, ...input } = CreateMemoryInputSchema.parse(raw);
     const now = new Date().toISOString();
     const type = input.type;
     const memory: Memory = {
@@ -174,6 +174,35 @@ export class MemoryRepository {
       )
       .get(userId, type, hash) as Row | undefined;
     return row ? fromRow(row) : null;
+  }
+
+  findActiveByEntityKey(userId: string, entityKey: string): Memory[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM memories
+         WHERE user_id = ? AND status = 'active'
+           AND json_extract(structured_json, '$.entityKey') = ?
+         ORDER BY created_at DESC`,
+      )
+      .all(userId, entityKey) as Row[];
+    return rows.map((r) => this.withLinks(fromRow(r)));
+  }
+
+  /** Create; if entityKey given, mark prior actives with that key superseded and link. */
+  createWithEntitySupersede(rawInput: CreateMemoryInput): { memory: Memory; supersededIds: string[] } {
+    const { entityKey, ...rest } = CreateMemoryInputSchema.parse(rawInput);
+    if (!entityKey) return { memory: this.create(rest), supersededIds: [] };
+
+    const prior = this.findActiveByEntityKey(rest.userId ?? "local", entityKey);
+    const memory = this.create({
+      ...rest,
+      structured: { ...(rest.structured ?? {}), entityKey },
+    });
+    for (const old of prior) {
+      this.update(old.id, { status: "superseded" });
+      this.addLink(memory.id, old.id, "supersedes");
+    }
+    return { memory, supersededIds: prior.map((m) => m.id) };
   }
 
   private withLinks(m: Memory): Memory {

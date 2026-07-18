@@ -146,3 +146,35 @@ describe("feedback loop", () => {
     repo.close();
   });
 });
+
+describe("entity anchoring", () => {
+  it("new write with same entityKey supersedes the old active memory", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const first = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User works at Acme Corp", entityKey: "user.employer",
+    });
+    assert.deepEqual(first.supersededIds, []);
+
+    const second = repo.createWithEntitySupersede({
+      userId: "local", type: "semantic", content: "User works at Initech", entityKey: "user.employer",
+    });
+    assert.deepEqual(second.supersededIds, [first.memory.id]);
+    assert.equal(repo.get(first.memory.id)!.status, "superseded");
+    assert.ok(
+      second.memory.links.some((l) => l.rel === "supersedes" && l.targetId === first.memory.id) ||
+        repo.get(second.memory.id)!.links.some((l) => l.rel === "supersedes" && l.targetId === first.memory.id),
+    );
+
+    const active = repo.findActiveByEntityKey("local", "user.employer");
+    assert.deepEqual(active.map((m) => m.id), [second.memory.id]);
+    repo.close();
+  });
+
+  it("without entityKey behaves like create", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const r = repo.createWithEntitySupersede({ userId: "local", type: "semantic", content: "plain fact" });
+    assert.deepEqual(r.supersededIds, []);
+    assert.equal(r.memory.structured, undefined);
+    repo.close();
+  });
+});

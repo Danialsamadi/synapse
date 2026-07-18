@@ -39,4 +39,20 @@ describe("consolidate", () => {
     assert.equal(repo.listQuarantine().length, 1);
     repo.close();
   });
+
+  it("entityKey in extracted fact supersedes prior active memory with same key", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    repo.createWithEntitySupersede({ userId: "local", type: "semantic", content: "User lives in Toronto", entityKey: "user.location" });
+    repo.create({ userId: "local", type: "episodic", content: "User mentioned moving to Vancouver" });
+    const reply = JSON.stringify({
+      facts: [{ content: "User lives in Vancouver", confidence: 0.9, tags: ["location"], supportingEpisodeIds: [], entityKey: "user.location" }],
+    });
+    const llm = new FakeLlm([reply]);
+    await consolidate(repo, embedder, llm);
+    const active = repo.findActiveByEntityKey("local", "user.location");
+    assert.equal(active.length, 1);
+    assert.equal(active[0]!.content, "User lives in Vancouver");
+    repo.close();
+  });
 });

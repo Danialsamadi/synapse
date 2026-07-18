@@ -16,28 +16,30 @@ export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
     "memory_write",
     {
       description:
-        "Store a long-term memory about the user. Call this whenever the user shares a durable fact about themselves (semantic), a preference or instruction about how to work with them (procedural), or a notable event (episodic) — especially when they say 'remember', 'from now on', or state personal facts.",
+        "Store a long-term memory about the user. Call this whenever the user shares a durable fact about themselves (semantic), a preference or instruction about how to work with them (procedural), or a notable event (episodic) — especially when they say 'remember', 'from now on', or state personal facts. Pass entityKey (e.g. 'user.location', 'user.employer') for facts with a single current value so a new value replaces the old one.",
       inputSchema: {
         type: z.enum(["episodic", "semantic", "procedural"]),
         content: z.string().min(1),
         importance: z.number().min(0).max(1).optional(),
         tags: z.array(z.string()).optional(),
+        entityKey: z.string().min(1).optional(),
       },
     },
-    async ({ type, content, importance, tags }) => {
+    async ({ type, content, importance, tags, entityKey }) => {
       const existing = repo.findActiveByContentHash("local", type, content);
       if (existing) return json({ deduped: true, memory: existing });
-      const memory = repo.create({
+      const { memory, supersededIds } = repo.createWithEntitySupersede({
         userId: "local",
         type,
         content,
         ...(importance !== undefined ? { importance: Math.min(importance, TOOL_MAX_IMPORTANCE) } : {}),
         ...(tags ? { tags } : {}),
+        ...(entityKey ? { entityKey } : {}),
         sourceRefs: [{ kind: "tool", id: "mcp", observedAt: new Date().toISOString() }],
       });
       const [vec] = await embedder.embed([memory.content]);
       if (vec) repo.saveEmbedding(memory.id, vec, embedder.model);
-      return json(memory);
+      return json(supersededIds.length > 0 ? { ...memory, supersededIds } : memory);
     },
   );
 

@@ -75,6 +75,7 @@ export const CreateMemoryInputSchema = z.object({
   sourceRefs: z.array(SourceRefSchema).optional(),
   tags: z.array(z.string()).optional(),
   retention: RetentionPolicySchema.optional(),
+  entityKey: z.string().min(1).optional(),
 });
 export type CreateMemoryInput = z.infer<typeof CreateMemoryInputSchema>;
 

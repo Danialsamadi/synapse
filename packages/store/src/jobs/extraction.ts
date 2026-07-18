@@ -11,6 +11,7 @@ export const ExtractedFactsSchema = z.object({
       confidence: z.number().min(0).max(1),
       tags: z.array(z.string()).default([]),
       supportingEpisodeIds: z.array(z.string()).default([]),
+      entityKey: z.string().optional(),
     }),
   ),
 });
@@ -24,7 +25,8 @@ export interface ConsolidateResult {
 }
 
 const SYSTEM = `You extract durable semantic facts about the user from episodic memories.
-Return ONLY JSON: {"facts":[{"content":string,"confidence":0..1,"tags":string[],"supportingEpisodeIds":string[]}]}.
+Return ONLY JSON: {"facts":[{"content":string,"confidence":0..1,"tags":string[],"supportingEpisodeIds":string[],"entityKey"?:string}]}.
+Set entityKey (dotted path like "user.location" or "user.employer") ONLY for facts with a single current value that a newer fact would replace. Omit it otherwise.
 Only include facts stated or strongly implied. Empty facts array if none.`;
 
 export async function consolidate(
@@ -63,12 +65,13 @@ export async function consolidate(
       continue;
     }
     const supporting = fact.supportingEpisodeIds.filter((id) => validEpisodeIds.has(id));
-    const memory = repo.create({
+    const { memory } = repo.createWithEntitySupersede({
       userId,
       type: "semantic",
       content: fact.content,
       confidence: fact.confidence,
       tags: fact.tags,
+      ...(fact.entityKey ? { entityKey: fact.entityKey } : {}),
       sourceRefs: supporting.map((id) => ({ kind: "message" as const, id, observedAt: new Date().toISOString() })),
     });
     const [vec] = await embedder.embed([memory.content]);

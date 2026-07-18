@@ -73,4 +73,20 @@ describe("mneme MCP server", () => {
     assert.equal(out.status, "disputed");
     repo.close();
   });
+
+  it("memory_write with entityKey supersedes the previous value", async () => {
+    const { repo, client } = await connected();
+    await client.callTool({
+      name: "memory_write",
+      arguments: { type: "semantic", content: "User lives in Toronto", entityKey: "user.location" },
+    });
+    await client.callTool({
+      name: "memory_write",
+      arguments: { type: "semantic", content: "User lives in Vancouver", entityKey: "user.location" },
+    });
+    const active = repo.findActiveByEntityKey("local", "user.location");
+    assert.equal(active.length, 1);
+    assert.equal(active[0]!.content, "User lives in Vancouver");
+    repo.close();
+  });
 });
