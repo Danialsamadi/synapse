@@ -13,13 +13,13 @@ importers:
       '@hono/node-server':
         specifier: ^1.13.7
         version: 1.19.14(hono@4.12.30)
-      '@mneme/core':
+      '@synapse/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@mneme/embeddings':
+      '@synapse/embeddings':
         specifier: workspace:*
         version: link:../../packages/embeddings
-      '@mneme/store':
+      '@synapse/store':
         specifier: workspace:*
         version: link:../../packages/store
       hono:
@@ -41,7 +41,7 @@ importers:
 
   apps/demo-agent:
     dependencies:
-      '@mneme/sdk':
+      '@synapse/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
     devDependencies:
@@ -57,21 +57,21 @@ importers:
 
   apps/mcp-server:
     dependencies:
-      '@mneme/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-      '@mneme/embeddings':
-        specifier: workspace:*
-        version: link:../../packages/embeddings
-      '@mneme/sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
-      '@mneme/store':
-        specifier: workspace:*
-        version: link:../../packages/store
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.0
         version: 1.29.0(zod@3.25.76)
+      '@synapse/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@synapse/embeddings':
+        specifier: workspace:*
+        version: link:../../packages/embeddings
+      '@synapse/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      '@synapse/store':
+        specifier: workspace:*
+        version: link:../../packages/store
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -88,13 +88,13 @@ importers:
 
   packages/cli:
     dependencies:
-      '@mneme/core':
+      '@synapse/core':
         specifier: workspace:*
         version: link:../core
-      '@mneme/embeddings':
+      '@synapse/embeddings':
         specifier: workspace:*
         version: link:../embeddings
-      '@mneme/store':
+      '@synapse/store':
         specifier: workspace:*
         version: link:../store
     devDependencies:
@@ -138,13 +138,13 @@ importers:
 
   packages/evals:
     dependencies:
-      '@mneme/core':
+      '@synapse/core':
         specifier: workspace:*
         version: link:../core
-      '@mneme/embeddings':
+      '@synapse/embeddings':
         specifier: workspace:*
         version: link:../embeddings
-      '@mneme/store':
+      '@synapse/store':
         specifier: workspace:*
         version: link:../store
     devDependencies:
@@ -160,7 +160,7 @@ importers:
 
   packages/sdk:
     dependencies:
-      '@mneme/core':
+      '@synapse/core':
         specifier: workspace:*
         version: link:../core
       zod:
@@ -179,15 +179,15 @@ importers:
 
   packages/store:
     dependencies:
-      '@mneme/core':
+      '@synapse/core':
         specifier: workspace:*
         version: link:../core
-      '@mneme/embeddings':
+      '@synapse/embeddings':
         specifier: workspace:*
         version: link:../embeddings
       better-sqlite3:
-        specifier: ^11.7.0
-        version: 11.10.0
+        specifier: ^12.11.1
+        version: 12.11.1
       zod:
         specifier: ^3.24.1
         version: 3.25.76
@@ -403,8 +403,9 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  better-sqlite3@11.10.0:
-    resolution: {integrity: sha512-EwhOpyXiOEL/lKzHz9AW1msWFNzGc/z+LzeB3/jnFJpxu+th2yqvzsSWas1v9jgs9+xiXJcD5A8CJxAG2TaghQ==}
+  better-sqlite3@12.11.1:
+    resolution: {integrity: sha512-dq9AtApgg5PGFtBzPFSBl3HZQjHok5gaQCM6zh2Yk0aSmDCs1CbnVI8/HgASQkNKsWFpseIO9beg5xxpYhbIfA==}
+    engines: {node: 20.x || 22.x || 23.x || 24.x || 25.x || 26.x}
 
   bindings@1.5.0:
     resolution: {integrity: sha512-p2q/t/mhvuOj/UeLlV6566GD/guowlr0hHxClI0W9m7MWYkL1F0hLo+0Aexs9HSPCtR1SXQ0TD3MMKrXZajbiQ==}
@@ -1014,7 +1015,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  better-sqlite3@11.10.0:
+  better-sqlite3@12.11.1:
     dependencies:
       bindings: 1.5.0
       prebuild-install: 7.1.3

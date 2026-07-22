@@ -1,6 +1,6 @@
-import { MnemeClient, MEMORY_TOOLS, executeMemoryTool } from "@mneme/sdk";
+import { SynapseClient, MEMORY_TOOLS, executeMemoryTool } from "@synapse/sdk";
 
-const baseUrl = process.env.MNEME_URL ?? "http://localhost:8787";
+const baseUrl = process.env.SYNAPSE_URL ?? "http://localhost:8787";
 
 interface SimulatedMessage {
   role: "user";
@@ -39,7 +39,7 @@ function llmDecideTools(content: string): { name: string; args: Record<string, u
 }
 
 async function main(): Promise<void> {
-  const client = new MnemeClient({ baseUrl });
+  const client = new SynapseClient({ baseUrl });
   console.log(`Demo agent (tool-calling loop) → ${baseUrl}\n`);
 
   for (const msg of messages) {

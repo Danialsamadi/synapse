@@ -21,4 +21,4 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - name: Eval suite (gates on stale-fact rate and pass rate)
-        run: pnpm --filter @mneme/evals exec tsx src/run.ts
+        run: pnpm --filter @synapse/evals exec tsx src/run.ts

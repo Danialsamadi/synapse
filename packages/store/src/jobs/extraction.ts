@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { EmbeddingProvider } from "@mneme/embeddings";
+import type { EmbeddingProvider } from "@synapse/embeddings";
 import type { MemoryRepository } from "../memory-repository.js";
 import { detectAndResolve, type ConflictPolicy } from "./conflicts.js";
 import type { LlmClient } from "./llm.js";

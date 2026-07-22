@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HashEmbeddingProvider } from "@mneme/embeddings";
+import { HashEmbeddingProvider } from "@synapse/embeddings";
 import { MemoryRepository } from "./memory-repository.js";
 import { RetrievalService, qualifierFor } from "./retrieval.js";
-import type { Memory } from "@mneme/core";
+import type { Memory } from "@synapse/core";
 
 async function seeded() {
   const repo = new MemoryRepository({ path: ":memory:" });
@@ -191,7 +191,7 @@ describe("touch-on-retrieve affects ranking", () => {
     const { join } = await import("node:path");
     const { default: Database } = await import("better-sqlite3");
 
-    const dir = mkdtempSync(join(tmpdir(), "mneme-test-"));
+    const dir = mkdtempSync(join(tmpdir(), "synapse-test-"));
     const path = join(dir, "t.db");
     const repo = new MemoryRepository({ path });
     const embedder = new HashEmbeddingProvider();

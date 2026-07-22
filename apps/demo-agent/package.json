@@ -1,5 +1,5 @@
 {
-  "name": "@mneme/demo-agent",
+  "name": "@synapse/demo-agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "test": "node --import tsx --test src/**/*.test.ts"
   },
   "dependencies": {
-    "@mneme/sdk": "workspace:*"
+    "@synapse/sdk": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

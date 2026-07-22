@@ -9,14 +9,14 @@ describe("provider config", () => {
   });
 
   it("coerces numeric env vars from strings", () => {
-    process.env.MNEME_EMBED_DIMENSIONS = "768";
-    process.env.MNEME_LLM_TEMPERATURE = "0.5";
+    process.env.SYNAPSE_EMBED_DIMENSIONS = "768";
+    process.env.SYNAPSE_LLM_TEMPERATURE = "0.5";
     try {
       assert.equal(loadEmbeddingConfig().dimensions, 768);
       assert.equal(loadLlmConfig().temperature, 0.5);
     } finally {
-      delete process.env.MNEME_EMBED_DIMENSIONS;
-      delete process.env.MNEME_LLM_TEMPERATURE;
+      delete process.env.SYNAPSE_EMBED_DIMENSIONS;
+      delete process.env.SYNAPSE_LLM_TEMPERATURE;
     }
   });
 });

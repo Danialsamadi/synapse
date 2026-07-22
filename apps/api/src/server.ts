@@ -11,13 +11,13 @@ import {
   RetrieveRequestSchema,
   UpdateMemoryInputSchema,
   MemoryTypeSchema,
-} from "@mneme/core";
-import { MemoryRepository, RetrievalService, consolidate, createEmbedder, createLlm, runDecay } from "@mneme/store";
-import type { JobRow } from "@mneme/store";
+} from "@synapse/core";
+import { MemoryRepository, RetrievalService, consolidate, createEmbedder, createLlm, runDecay } from "@synapse/store";
+import type { JobRow } from "@synapse/store";
 
 export async function createServer(repo?: MemoryRepository, opts?: { port?: number; hostname?: string }) {
   const repository = repo ?? (() => {
-    const path = process.env.MNEME_DB ?? resolve(process.cwd(), ".mneme", "mneme.db");
+    const path = process.env.SYNAPSE_DB ?? resolve(process.cwd(), ".synapse", "synapse.db");
     mkdirSync(dirname(path), { recursive: true });
     return new MemoryRepository({ path });
   })();
@@ -58,7 +58,7 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
     );
   });
 
-  const token = process.env.MNEME_TOKEN;
+  const token = process.env.SYNAPSE_TOKEN;
   if (token) {
     const expected = Buffer.from(`Bearer ${token}`);
     app.use("/v1/*", async (c, next) => {
@@ -71,7 +71,7 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
     });
   }
 
-  app.get("/health", (c) => c.json({ ok: true, service: "mneme-api" }));
+  app.get("/health", (c) => c.json({ ok: true, service: "synapse-api" }));
 
   app.post("/v1/memories", async (c) => {
     const json: unknown = await c.req.json();
@@ -260,12 +260,12 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
 
   const port = opts?.port ?? Number(process.env.PORT ?? 8787);
   // Default to loopback so export/purge aren't exposed to the LAN. Opt into
-  // wider exposure with MNEME_HOST=0.0.0.0 (and set MNEME_TOKEN when you do).
-  const hostname = opts?.hostname ?? process.env.MNEME_HOST ?? "127.0.0.1";
+  // wider exposure with SYNAPSE_HOST=0.0.0.0 (and set SYNAPSE_TOKEN when you do).
+  const hostname = opts?.hostname ?? process.env.SYNAPSE_HOST ?? "127.0.0.1";
   if (!token && hostname !== "127.0.0.1" && hostname !== "localhost") {
     console.warn(
-      "WARNING: mneme-api is bound to a non-loopback address with no MNEME_TOKEN set — " +
-        "/v1/export and /v1/purge are reachable unauthenticated. Set MNEME_TOKEN.",
+      "WARNING: synapse-api is bound to a non-loopback address with no SYNAPSE_TOKEN set — " +
+        "/v1/export and /v1/purge are reachable unauthenticated. Set SYNAPSE_TOKEN.",
     );
   }
   const server = await new Promise<ReturnType<typeof serve>>((res) => {
@@ -278,6 +278,6 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
 if (process.argv[1] && process.argv[1].endsWith("server.ts")) {
   createServer().then((server) => {
     const port = Number(process.env.PORT ?? 8787);
-    console.log(`mneme-api listening on http://localhost:${port}`);
+    console.log(`synapse-api listening on http://localhost:${port}`);
   });
 }

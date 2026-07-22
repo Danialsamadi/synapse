@@ -1,5 +1,5 @@
 {
-  "name": "@mneme/cli",
+  "name": "@synapse/cli",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,9 +9,9 @@
     "start": "tsx src/cli.ts"
   },
   "dependencies": {
-    "@mneme/core": "workspace:*",
-    "@mneme/store": "workspace:*",
-    "@mneme/embeddings": "workspace:*"
+    "@synapse/core": "workspace:*",
+    "@synapse/store": "workspace:*",
+    "@synapse/embeddings": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

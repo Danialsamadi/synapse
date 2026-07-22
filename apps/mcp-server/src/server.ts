@@ -1,16 +1,16 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { MemoryRepository, RetrievalService, createEmbedder } from "@mneme/store";
-import { TOOL_MAX_IMPORTANCE } from "@mneme/sdk";
+import { MemoryRepository, RetrievalService, createEmbedder } from "@synapse/store";
+import { TOOL_MAX_IMPORTANCE } from "@synapse/sdk";
 
 const json = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
 });
 
-export function createMnemeMcpServer(repo: MemoryRepository): McpServer {
+export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
   const embedder = createEmbedder();
   const retrieval = new RetrievalService(repo, embedder);
-  const server = new McpServer({ name: "mneme", version: "0.1.0" });
+  const server = new McpServer({ name: "synapse", version: "0.1.0" });
 
   server.registerTool(
     "memory_write",

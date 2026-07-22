@@ -1,5 +1,5 @@
-import { loadEmbeddingConfig, loadLlmConfig } from "@mneme/core";
-import { HashEmbeddingProvider, OpenAiEmbeddingProvider, type EmbeddingProvider } from "@mneme/embeddings";
+import { loadEmbeddingConfig, loadLlmConfig } from "@synapse/core";
+import { HashEmbeddingProvider, OpenAiEmbeddingProvider, type EmbeddingProvider } from "@synapse/embeddings";
 import { FakeLlm, OpenAiCompatLlm, type LlmClient } from "./jobs/llm.js";
 
 export function createEmbedder(): EmbeddingProvider {

@@ -1,5 +1,5 @@
-import type { Memory } from "@mneme/core";
-import { cosineSimilarity, type EmbeddingProvider } from "@mneme/embeddings";
+import type { Memory } from "@synapse/core";
+import { cosineSimilarity, type EmbeddingProvider } from "@synapse/embeddings";
 import type { MemoryRepository } from "../memory-repository.js";
 import type { LlmClient } from "./llm.js";
 

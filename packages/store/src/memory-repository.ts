@@ -12,7 +12,7 @@ import {
   CreateMemoryInputSchema,
   UpdateMemoryInputSchema,
   newMemoryId,
-} from "@mneme/core";
+} from "@synapse/core";
 import { MIGRATION_V1, MIGRATION_V2 } from "./schema.js";
 
 export interface MemoryRepositoryOptions {

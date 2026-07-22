@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HashEmbeddingProvider } from "@mneme/embeddings";
-import { MemoryRepository, RetrievalService } from "@mneme/store";
+import { HashEmbeddingProvider } from "@synapse/embeddings";
+import { MemoryRepository, RetrievalService } from "@synapse/store";
 
 async function seeded() {
   const repo = new MemoryRepository({ path: ":memory:" });

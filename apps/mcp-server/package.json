@@ -1,18 +1,18 @@
 {
-  "name": "@mneme/mcp-server",
+  "name": "@synapse/mcp-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test src/**/*.test.ts",
-    "start": "tsx src/index.ts"
+    "start": "node preflight.mjs && tsx src/index.ts"
   },
   "dependencies": {
-    "@mneme/core": "workspace:*",
-    "@mneme/store": "workspace:*",
-    "@mneme/embeddings": "workspace:*",
-    "@mneme/sdk": "workspace:*",
+    "@synapse/core": "workspace:*",
+    "@synapse/store": "workspace:*",
+    "@synapse/embeddings": "workspace:*",
+    "@synapse/sdk": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.24.1"
   },

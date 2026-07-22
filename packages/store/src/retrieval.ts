@@ -9,8 +9,8 @@ import {
   type RankWeights,
   type RetrieveRequest,
   type RetrievedMemory,
-} from "@mneme/core";
-import { cosineSimilarity, type EmbeddingProvider } from "@mneme/embeddings";
+} from "@synapse/core";
+import { cosineSimilarity, type EmbeddingProvider } from "@synapse/embeddings";
 import type { MemoryRepository } from "./memory-repository.js";
 
 export class RetrievalService {

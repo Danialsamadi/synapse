@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { MnemeClient } from "./index.js";
+import type { SynapseClient } from "./index.js";
 
 export const TOOL_MAX_IMPORTANCE = 0.8;
 
@@ -62,7 +62,7 @@ export const MEMORY_TOOLS: ToolDefinition[] = [
 ];
 
 export async function executeMemoryTool(
-  client: MnemeClient,
+  client: SynapseClient,
   name: string,
   args: unknown,
 ): Promise<unknown> {

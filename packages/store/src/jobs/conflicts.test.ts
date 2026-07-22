@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { HashEmbeddingProvider } from "@mneme/embeddings";
+import { HashEmbeddingProvider } from "@synapse/embeddings";
 import { MemoryRepository } from "../memory-repository.js";
 import { detectAndResolve } from "./conflicts.js";
 import { FakeLlm } from "./llm.js";

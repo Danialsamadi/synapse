@@ -1,5 +1,5 @@
-import { HashEmbeddingProvider } from "@mneme/embeddings";
-import { MemoryRepository, RetrievalService } from "@mneme/store";
+import { HashEmbeddingProvider } from "@synapse/embeddings";
+import { MemoryRepository, RetrievalService } from "@synapse/store";
 import { GOLDEN_CASES, type EvalCase } from "./cases.js";
 import { seedFixtures } from "./fixtures.js";
 

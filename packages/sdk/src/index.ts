@@ -5,7 +5,7 @@ import {
   type Memory,
   type RetrieveRequest,
   type RetrievedMemory,
-} from "@mneme/core";
+} from "@synapse/core";
 
 export type { CreateMemoryInput, Memory, RetrieveRequest, RetrievedMemory };
 export { CreateMemoryInputSchema, RetrieveRequestSchema };
@@ -30,16 +30,16 @@ export {
   type NormalizedToolCall,
 } from "./adapters.js";
 
-export interface MnemeClientOptions {
+export interface SynapseClientOptions {
   baseUrl: string;
   token?: string;
 }
 
-export class MnemeClient {
+export class SynapseClient {
   private readonly baseUrl: string;
   private readonly token: string | undefined;
 
-  constructor(options: MnemeClientOptions) {
+  constructor(options: SynapseClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/$/, "");
     this.token = options.token;
   }
@@ -82,7 +82,7 @@ export class MnemeClient {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Mneme API ${method} ${path} → ${res.status}: ${text}`);
+      throw new Error(`Synapse API ${method} ${path} → ${res.status}: ${text}`);
     }
     return (await res.json()) as T;
   }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it, before, after } from "node:test";
-import { MemoryRepository } from "@mneme/store";
+import { MemoryRepository } from "@synapse/store";
 import { createServer } from "./server.js";
 
 let repo: MemoryRepository;
@@ -105,7 +105,7 @@ describe("GET /v1/activity limit clamping", () => {
 describe("token auth", () => {
   it("rejects wrong token and accepts the right one (constant-time)", async () => {
     const authedRepo = new MemoryRepository({ path: ":memory:" });
-    process.env.MNEME_TOKEN = "s3cret-token";
+    process.env.SYNAPSE_TOKEN = "s3cret-token";
     const authed = await createServer(authedRepo, { port: 0 });
     const addr = authed.address();
     const url = `http://127.0.0.1:${addr !== null && typeof addr === "object" ? addr.port : 0}`;
@@ -119,7 +119,7 @@ describe("token auth", () => {
     } finally {
       authed.close();
       authedRepo.close();
-      delete process.env.MNEME_TOKEN;
+      delete process.env.SYNAPSE_TOKEN;
     }
   });
 });

@@ -16,10 +16,10 @@ export class OpenAiCompatLlm implements LlmClient {
   private readonly temperature: number;
 
   constructor(config?: OpenAiLlmConfig) {
-    this.baseUrl = config?.baseUrl ?? process.env.MNEME_LLM_BASE_URL ?? "https://api.openai.com/v1";
-    this.apiKey = config?.apiKey ?? process.env.MNEME_LLM_API_KEY ?? "";
-    this.model = config?.model ?? process.env.MNEME_LLM_MODEL ?? "gpt-4o-mini";
-    this.temperature = config?.temperature ?? Number(process.env.MNEME_LLM_TEMPERATURE ?? "0");
+    this.baseUrl = config?.baseUrl ?? process.env.SYNAPSE_LLM_BASE_URL ?? "https://api.openai.com/v1";
+    this.apiKey = config?.apiKey ?? process.env.SYNAPSE_LLM_API_KEY ?? "";
+    this.model = config?.model ?? process.env.SYNAPSE_LLM_MODEL ?? "gpt-4o-mini";
+    this.temperature = config?.temperature ?? Number(process.env.SYNAPSE_LLM_TEMPERATURE ?? "0");
   }
 
   async complete(system: string, user: string): Promise<string> {

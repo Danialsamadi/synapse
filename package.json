@@ -1,16 +1,16 @@
 {
-  "name": "mneme",
+  "name": "synapse",
   "private": true,
   "version": "0.1.0",
-  "description": "Mneme \u2014 Personal AI Memory OS",
+  "description": "Synapse \u2014 Personal AI Memory OS",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev:api": "pnpm --filter @mneme/api dev",
+    "dev:api": "pnpm --filter @synapse/api dev",
     "typecheck": "pnpm -r run typecheck",
     "test": "pnpm -r run test",
-    "eval": "pnpm --filter @mneme/evals test",
-    "cli": "pnpm --filter @mneme/cli start",
-    "mcp": "pnpm --filter @mneme/mcp-server start"
+    "eval": "pnpm --filter @synapse/evals test",
+    "cli": "pnpm --filter @synapse/cli start",
+    "mcp": "pnpm --filter @synapse/mcp-server start"
   },
   "engines": {
     "node": ">=20"
@@ -18,6 +18,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Danialsamadi/memory-os.git"
+    "url": "https://github.com/Danialsamadi/synapse.git"
   }
 }

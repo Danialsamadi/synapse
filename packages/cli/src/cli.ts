@@ -1,28 +1,28 @@
 #!/usr/bin/env node
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { MemoryTypeSchema } from "@mneme/core";
-import { MemoryRepository, RetrievalService, createEmbedder } from "@mneme/store";
+import { MemoryTypeSchema } from "@synapse/core";
+import { MemoryRepository, RetrievalService, createEmbedder } from "@synapse/store";
 
 function dbPath(): string {
-  const p = process.env.MNEME_DB ?? resolve(process.cwd(), ".mneme", "mneme.db");
+  const p = process.env.SYNAPSE_DB ?? resolve(process.cwd(), ".synapse", "synapse.db");
   mkdirSync(dirname(p), { recursive: true });
   return p;
 }
 
 function usage(): never {
-  console.log(`mneme — Personal AI Memory OS CLI
+  console.log(`synapse — Personal AI Memory OS CLI
 
 Usage:
-  mneme remember <type> <content...>
-  mneme list [--type <type>]
-  mneme get <id>
-  mneme query <text...> [--type <type>] [--tags <tag1,tag2>]
-  mneme export
-  mneme delete <id>
+  synapse remember <type> <content...>
+  synapse list [--type <type>]
+  synapse get <id>
+  synapse query <text...> [--type <type>] [--tags <tag1,tag2>]
+  synapse export
+  synapse delete <id>
 
 Types: episodic | semantic | procedural | working
-Env: MNEME_DB=path/to.db (default: ./.mneme/mneme.db)
+Env: SYNAPSE_DB=path/to.db (default: ./.synapse/synapse.db)
 `);
   process.exit(1);
 }

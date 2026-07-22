@@ -19,19 +19,19 @@ export type LlmConfig = z.infer<typeof LlmConfigSchema>;
 
 export function loadEmbeddingConfig(): EmbeddingConfig {
   return EmbeddingConfigSchema.parse({
-    provider: process.env.MNEME_EMBED_PROVIDER,
-    baseUrl: process.env.MNEME_EMBED_BASE_URL,
-    apiKey: process.env.MNEME_EMBED_API_KEY,
-    model: process.env.MNEME_EMBED_MODEL,
-    dimensions: process.env.MNEME_EMBED_DIMENSIONS,
+    provider: process.env.SYNAPSE_EMBED_PROVIDER,
+    baseUrl: process.env.SYNAPSE_EMBED_BASE_URL,
+    apiKey: process.env.SYNAPSE_EMBED_API_KEY,
+    model: process.env.SYNAPSE_EMBED_MODEL,
+    dimensions: process.env.SYNAPSE_EMBED_DIMENSIONS,
   });
 }
 
 export function loadLlmConfig(): LlmConfig {
   return LlmConfigSchema.parse({
-    baseUrl: process.env.MNEME_LLM_BASE_URL,
-    apiKey: process.env.MNEME_LLM_API_KEY,
-    model: process.env.MNEME_LLM_MODEL,
-    temperature: process.env.MNEME_LLM_TEMPERATURE,
+    baseUrl: process.env.SYNAPSE_LLM_BASE_URL,
+    apiKey: process.env.SYNAPSE_LLM_API_KEY,
+    model: process.env.SYNAPSE_LLM_MODEL,
+    temperature: process.env.SYNAPSE_LLM_TEMPERATURE,
   });
 }

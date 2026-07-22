@@ -1,4 +1,4 @@
-/** SQL schema for Mneme local store (MVP). */
+/** SQL schema for Synapse local store (MVP). */
 export const MIGRATION_V1 = `
 CREATE TABLE IF NOT EXISTS memories (
   id TEXT PRIMARY KEY,

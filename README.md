@@ -1,14 +1,14 @@
-![Mneme](memory-os.png)
+![Synapse](memory-os.png)
 
-# Mneme — Personal AI Memory OS
+# Synapse — Personal AI Memory OS
 
-[![CI](https://github.com/Danialsamadi/memory-os/actions/workflows/ci.yml/badge.svg)](https://github.com/Danialsamadi/memory-os/actions/workflows/ci.yml)
+[![CI](https://github.com/Danialsamadi/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/Danialsamadi/synapse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 
-> Chat history is a log. Mneme is a brain.
+> Chat history is a log. Synapse is a brain.
 
-Mneme is a **local-first personal memory operating system** that gives AI agents durable, typed long-term memory. It extracts semantic facts from episodic conversations, anchors single-current-value facts to entity keys so new values supersede old ones, detects and resolves conflicts, decays stale information, and retrieves with a hybrid scoring pipeline that attaches trust qualifiers and learns from agent feedback — all on local SQLite with full user control over export and purge. An always-on digest covers what retrieval can't: the facts an agent should just know at session start.
+Synapse is a **local-first personal memory operating system** that gives AI agents durable, typed long-term memory. It extracts semantic facts from episodic conversations, anchors single-current-value facts to entity keys so new values supersede old ones, detects and resolves conflicts, decays stale information, and retrieves with a hybrid scoring pipeline that attaches trust qualifiers and learns from agent feedback — all on local SQLite with full user control over export and purge. An always-on digest covers what retrieval can't: the facts an agent should just know at session start.
 
 ## Architecture
 
@@ -17,7 +17,7 @@ flowchart TB
     subgraph Agents["Agents & Surfaces"]
         MCP["MCP clients<br/>Claude Code · Claude Desktop · Cursor · OpenCode"]
         SDK["SDK adapters<br/>Anthropic · OpenAI-compatible routers"]
-        CLI["CLI<br/>mneme remember / query / export"]
+        CLI["CLI<br/>synapse remember / query / export"]
         UI["Inspector UI"]
     end
 
@@ -65,9 +65,9 @@ packages/
   core/            Zod schemas, scoring helpers, ID generation
   store/           SQLite repository, retrieval, jobs
   embeddings/      provider interface + hash/OpenAI embeddings
-  sdk/             MnemeClient + tool definitions + provider adapters
+  sdk/             SynapseClient + tool definitions + provider adapters
   evals/           32 golden cases + lifecycle test
-  cli/             mneme CLI
+  cli/             synapse CLI
 scripts/
   demo.sh          north-star demo script
 ```
@@ -108,9 +108,9 @@ pnpm eval                              # eval harness (32 cases)
 pnpm dev:api                           # http://localhost:8787
 
 # CLI
-pnpm --filter @mneme/cli start remember semantic "User prefers TypeScript"
-pnpm --filter @mneme/cli start query "TypeScript preference"
-pnpm --filter @mneme/cli start export
+pnpm --filter @synapse/cli start remember semantic "User prefers TypeScript"
+pnpm --filter @synapse/cli start query "TypeScript preference"
+pnpm --filter @synapse/cli start export
 
 # Inspector
 open http://localhost:8787/inspector
@@ -121,22 +121,22 @@ open http://localhost:8787/inspector
 
 ## Use from any AI agent
 
-Mneme exposes `memory_write`, `memory_retrieve`, `memory_digest`, and `memory_feedback` over MCP. Any MCP-capable agent can use it — verified live with Claude Code (write in one session, recall in a fresh one).
+Synapse exposes `memory_write`, `memory_retrieve`, `memory_digest`, and `memory_feedback` over MCP. Any MCP-capable agent can use it — verified live with Claude Code (write in one session, recall in a fresh one).
 
 **Claude Code:**
 
 ```bash
-claude mcp add --scope user mneme -- pnpm --dir /path/to/memory-os mcp
+claude mcp add --scope user synapse -- pnpm --dir /path/to/memory-os mcp
 ```
 
-Then verify inside a new session with `/mcp` — mneme must show as connected. Tool calls appear as permission prompts named `mneme - memory_write` / `mneme - memory_retrieve`.
+Then verify inside a new session with `/mcp` — synapse must show as connected. Tool calls appear as permission prompts named `synapse - memory_write` / `synapse - memory_retrieve`.
 
 **Claude Desktop** — add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows), then restart the app:
 
 ```json
 {
   "mcpServers": {
-    "mneme": {
+    "synapse": {
       "command": "pnpm",
       "args": ["--dir", "/path/to/memory-os", "mcp"]
     }
@@ -149,24 +149,24 @@ Then verify inside a new session with `/mcp` — mneme must show as connected. T
 **OpenCode:**
 
 ```bash
-opencode mcp add mneme -- pnpm --dir /path/to/memory-os mcp
+opencode mcp add synapse -- pnpm --dir /path/to/memory-os mcp
 ```
 
 **Any other MCP client** — it's a standard stdio server: command `pnpm`, args `["--dir", "/path/to/memory-os", "mcp"]`.
 
-The server stores to `~/.mneme/mneme.db` by default; set `MNEME_DB` in the server's `env` to share one database with the API/CLI/Inspector.
+The server stores to `~/.synapse/synapse.db` by default; set `SYNAPSE_DB` in the server's `env` to share one database with the API/CLI/Inspector.
 
 **Testing tips (learned the hard way):**
 - Confirm the tool is actually connected in the session before judging results (`/mcp` in Claude Code, `opencode mcp list`).
-- Hosts with their own memory feature (Claude Code) may prefer it for passive "remember X" phrasing — name the tool ("use the mneme memory_write tool") or add `Use the mneme MCP tools for storing and recalling user memories.` to your `CLAUDE.md` / agent rules.
-- Independent proof a write landed: `sqlite3 ~/.mneme/mneme.db "SELECT type, content FROM memories WHERE status='active'"`.
+- Hosts with their own memory feature (Claude Code) may prefer it for passive "remember X" phrasing — name the tool ("use the synapse memory_write tool") or add `Use the synapse MCP tools for storing and recalling user memories.` to your `CLAUDE.md` / agent rules.
+- Independent proof a write landed: `sqlite3 ~/.synapse/synapse.db "SELECT type, content FROM memories WHERE status='active'"`.
 
 **Anthropic / OpenAI / any OpenAI-compatible router** (OpenRouter, Groq, Ollama, Mistral):
 
 ```ts
-import { toAnthropicTools, toOpenAiTools, parseToolCall, executeMemoryTool, MnemeClient } from "@mneme/sdk";
+import { toAnthropicTools, toOpenAiTools, parseToolCall, executeMemoryTool, SynapseClient } from "@synapse/sdk";
 
-const client = new MnemeClient({ baseUrl: "http://localhost:8787" });
+const client = new SynapseClient({ baseUrl: "http://localhost:8787" });
 // pass toAnthropicTools() to the Messages API, or toOpenAiTools() to Chat Completions
 // on any tool call the model returns:
 const { name, args } = parseToolCall(providerToolCall);
@@ -192,16 +192,16 @@ Behavioral evals go beyond retrieval ranking and test outcomes — the failure m
 
 - **Export:** `GET /v1/export` — full JSON dump of all non-deleted memories
 - **Purge:** `POST /v1/purge` — hard-deletes rows, embeddings, and links
-- **Auth:** set `MNEME_TOKEN` env var to require Bearer auth on all `/v1/*` routes
+- **Auth:** set `SYNAPSE_TOKEN` env var to require Bearer auth on all `/v1/*` routes
 - **Audit:** export and purge actions are logged to the audit table
-- **Network:** the API binds `127.0.0.1` by default. To expose it beyond loopback set `MNEME_HOST=0.0.0.0` — and set `MNEME_TOKEN` when you do, or `/v1/export` and `/v1/purge` are reachable unauthenticated.
+- **Network:** the API binds `127.0.0.1` by default. To expose it beyond loopback set `SYNAPSE_HOST=0.0.0.0` — and set `SYNAPSE_TOKEN` when you do, or `/v1/export` and `/v1/purge` are reachable unauthenticated.
 
 ### Where your data goes
 
 Storage and retrieval are fully local — SQLite on your disk, no network calls. Two paths send memory content off-device, and only when you opt into them:
 
-- **Consolidation** (`POST /v1/jobs/consolidate`): new episodic memories are sent to the LLM at `MNEME_LLM_BASE_URL` (default `https://api.openai.com/v1`) to extract semantic facts. Point it at a local model (e.g. Ollama) to keep everything on-device.
-- **Embeddings:** the default provider is the offline hash embedder (no network). Only the OpenAI-compatible embedder (`MNEME_EMBED_*`) sends memory text to an external endpoint.
+- **Consolidation** (`POST /v1/jobs/consolidate`): new episodic memories are sent to the LLM at `SYNAPSE_LLM_BASE_URL` (default `https://api.openai.com/v1`) to extract semantic facts. Point it at a local model (e.g. Ollama) to keep everything on-device.
+- **Embeddings:** the default provider is the offline hash embedder (no network). Only the OpenAI-compatible embedder (`SYNAPSE_EMBED_*`) sends memory text to an external endpoint.
 
 If you never run consolidation and never configure a remote embedder, no memory content leaves your machine.
 

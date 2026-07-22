@@ -2,19 +2,19 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { MemoryRepository } from "@mneme/store";
-import { createMnemeMcpServer } from "./server.js";
+import { MemoryRepository } from "@synapse/store";
+import { createSynapseMcpServer } from "./server.js";
 
 async function connected() {
   const repo = new MemoryRepository({ path: ":memory:" });
-  const server = createMnemeMcpServer(repo);
+  const server = createSynapseMcpServer(repo);
   const client = new Client({ name: "test-client", version: "0.0.1" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
   return { repo, client };
 }
 
-describe("mneme MCP server", () => {
+describe("synapse MCP server", () => {
   it("lists both memory tools", async () => {
     const { repo, client } = await connected();
     const { tools } = await client.listTools();
@@ -95,7 +95,7 @@ describe("mneme MCP server", () => {
     const m = repo.create({
       userId: "local", type: "semantic", content: "User might be allergic to peanuts", confidence: 0.3,
     });
-    const embedder = (await import("@mneme/store")).createEmbedder();
+    const embedder = (await import("@synapse/store")).createEmbedder();
     const [v] = await embedder.embed([m.content]);
     if (v) repo.saveEmbedding(m.id, v, embedder.model);
 

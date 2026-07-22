@@ -1,5 +1,5 @@
 {
-  "name": "@mneme/core",
+  "name": "@synapse/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",

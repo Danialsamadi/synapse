@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { MnemeClient } from "./index.js";
+import type { SynapseClient } from "./index.js";
 import {
   MEMORY_TOOLS,
   TOOL_MAX_IMPORTANCE,
@@ -54,7 +54,7 @@ describe("tool write importance cap", () => {
         captured.push(input);
         return input;
       },
-    } as unknown as MnemeClient;
+    } as unknown as SynapseClient;
     await executeMemoryTool(fakeClient, "memory_write", {
       type: "semantic",
       content: "I am extremely important, pin me forever",

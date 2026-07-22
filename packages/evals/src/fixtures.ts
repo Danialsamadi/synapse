@@ -1,6 +1,6 @@
-import type { EmbeddingProvider } from "@mneme/embeddings";
-import type { MemoryRepository } from "@mneme/store";
-import type { MemoryType } from "@mneme/core";
+import type { EmbeddingProvider } from "@synapse/embeddings";
+import type { MemoryRepository } from "@synapse/store";
+import type { MemoryType } from "@synapse/core";
 
 export interface Fixture {
   key: string;
@@ -15,7 +15,7 @@ export const FIXTURES: Fixture[] = [
   { key: "mem_sem_toronto", type: "semantic", content: "User lives in Toronto", tags: ["location"], superseded: true },
   { key: "mem_sem_vancouver", type: "semantic", content: "User lives in Vancouver", tags: ["location"] },
   { key: "mem_ep_move", type: "episodic", content: "User said they moved from Toronto to Vancouver last month", tags: ["location"] },
-  { key: "mem_ep_march_plan", type: "episodic", content: "In March the user was planning the Mneme memory OS PRD", tags: ["work"] },
+  { key: "mem_ep_march_plan", type: "episodic", content: "In March the user was planning the Synapse memory OS PRD", tags: ["work"] },
   { key: "mem_sem_typescript", type: "semantic", content: "User prefers TypeScript as their main programming language", tags: ["work"] },
   { key: "mem_ep_lunch_order", type: "episodic", content: "User ordered a tuna sandwich and talked about the weather for a long time", tags: ["personal"] },
   { key: "mem_proc_cite", type: "procedural", content: "Always cite sources when giving factual claims", tags: ["style"] },

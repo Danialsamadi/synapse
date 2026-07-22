@@ -1,4 +1,4 @@
-import { ageDays, decayPenalty } from "@mneme/core";
+import { ageDays, decayPenalty } from "@synapse/core";
 import type { MemoryRepository } from "../memory-repository.js";
 
 export interface DecayResult { archived: number; expired: number; scanned: number }
