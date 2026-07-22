@@ -1,4 +1,4 @@
-![Synapse](memory-os.png)
+![Synapse](Synapse.png)
 
 # Synapse — Personal AI Memory OS
 
