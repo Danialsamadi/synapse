@@ -72,3 +72,27 @@ CREATE TABLE IF NOT EXISTS audit_log (
   created_at TEXT NOT NULL
 );
 `;
+
+/** Ordered migrations; index+1 = schema version stored in PRAGMA user_version. */
+export const MIGRATIONS: readonly string[] = [MIGRATION_V1, MIGRATION_V2];
+
+import type DatabaseType from "better-sqlite3";
+
+/**
+ * Applies pending migrations inside a transaction and stamps user_version.
+ * Fails closed if the DB was written by a newer version of the code.
+ * Legacy DBs (tables present, user_version 0) adopt safely: migrations are idempotent.
+ */
+export function runMigrations(db: DatabaseType.Database): void {
+  const current = db.pragma("user_version", { simple: true }) as number;
+  if (current > MIGRATIONS.length) {
+    throw new Error(
+      `Database schema version ${current} is newer than this build supports (${MIGRATIONS.length}). ` +
+        `Upgrade synapse instead of downgrading the database.`,
+    );
+  }
+  db.transaction(() => {
+    for (let v = current; v < MIGRATIONS.length; v++) db.exec(MIGRATIONS[v]!);
+    db.pragma(`user_version = ${MIGRATIONS.length}`);
+  })();
+}

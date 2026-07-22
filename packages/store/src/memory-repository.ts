@@ -13,7 +13,7 @@ import {
   UpdateMemoryInputSchema,
   newMemoryId,
 } from "@synapse/core";
-import { MIGRATION_V1, MIGRATION_V2 } from "./schema.js";
+import { runMigrations } from "./schema.js";
 
 export interface MemoryRepositoryOptions {
   /** Path to sqlite file, or ":memory:" for tests. */
@@ -36,12 +36,16 @@ export class MemoryRepository {
   constructor(options: MemoryRepositoryOptions = {}) {
     this.db = new Database(options.path ?? ":memory:");
     this.db.pragma("journal_mode = WAL");
-    this.db.exec(MIGRATION_V1);
-    this.db.exec(MIGRATION_V2);
+    runMigrations(this.db);
   }
 
   close(): void {
     this.db.close();
+  }
+
+  /** Online backup via SQLite's backup API — safe while the DB is in use (WAL). */
+  async backup(destination: string): Promise<void> {
+    await this.db.backup(destination);
   }
 
   create(raw: CreateMemoryInput): Memory {

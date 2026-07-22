@@ -11,16 +11,13 @@ import {
   RetrieveRequestSchema,
   UpdateMemoryInputSchema,
   MemoryTypeSchema,
+  resolveDbPath,
 } from "@synapse/core";
 import { MemoryRepository, RetrievalService, consolidate, createEmbedder, createLlm, runDecay } from "@synapse/store";
 import type { JobRow } from "@synapse/store";
 
 export async function createServer(repo?: MemoryRepository, opts?: { port?: number; hostname?: string }) {
-  const repository = repo ?? (() => {
-    const path = process.env.SYNAPSE_DB ?? resolve(process.cwd(), ".synapse", "synapse.db");
-    mkdirSync(dirname(path), { recursive: true });
-    return new MemoryRepository({ path });
-  })();
+  const repository = repo ?? new MemoryRepository({ path: resolveDbPath() });
   const embedder = createEmbedder();
   const retrieval = new RetrievalService(repository, embedder);
   const llm = createLlm();

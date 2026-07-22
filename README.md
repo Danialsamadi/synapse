@@ -126,7 +126,10 @@ Synapse exposes `memory_write`, `memory_retrieve`, `memory_digest`, and `memory_
 **Claude Code:**
 
 ```bash
-claude mcp add --scope user synapse -- pnpm --dir /path/to/memory-os mcp
+claude mcp add --scope user synapse -- npx -y synapse-mcp
+
+# or from a source checkout:
+claude mcp add --scope user synapse -- pnpm --dir /path/to/synapse mcp
 ```
 
 Then verify inside a new session with `/mcp` — synapse must show as connected. Tool calls appear as permission prompts named `synapse - memory_write` / `synapse - memory_retrieve`.

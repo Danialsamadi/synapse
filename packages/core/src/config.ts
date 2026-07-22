@@ -35,3 +35,17 @@ export function loadLlmConfig(): LlmConfig {
     temperature: process.env.SYNAPSE_LLM_TEMPERATURE,
   });
 }
+
+import { mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+
+/**
+ * Canonical DB location: SYNAPSE_DB override, else ~/.synapse/synapse.db.
+ * Creates the parent directory so callers can open the DB directly.
+ */
+export function resolveDbPath(): string {
+  const path = process.env.SYNAPSE_DB ?? join(homedir(), ".synapse", "synapse.db");
+  mkdirSync(dirname(path), { recursive: true });
+  return path;
+}

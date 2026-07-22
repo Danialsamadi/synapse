@@ -1,14 +1,8 @@
 #!/usr/bin/env node
-import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { MemoryTypeSchema } from "@synapse/core";
+import { MemoryTypeSchema, resolveDbPath } from "@synapse/core";
 import { MemoryRepository, RetrievalService, createEmbedder } from "@synapse/store";
 
-function dbPath(): string {
-  const p = process.env.SYNAPSE_DB ?? resolve(process.cwd(), ".synapse", "synapse.db");
-  mkdirSync(dirname(p), { recursive: true });
-  return p;
-}
+const dbPath = resolveDbPath;
 
 function usage(): never {
   console.log(`synapse — Personal AI Memory OS CLI
@@ -19,10 +13,12 @@ Usage:
   synapse get <id>
   synapse query <text...> [--type <type>] [--tags <tag1,tag2>]
   synapse export
+  synapse backup [dest]
+  synapse restore <src> --force
   synapse delete <id>
 
 Types: episodic | semantic | procedural | working
-Env: SYNAPSE_DB=path/to.db (default: ./.synapse/synapse.db)
+Env: SYNAPSE_DB=path/to.db (default: ~/.synapse/synapse.db)
 `);
   process.exit(1);
 }
@@ -30,6 +26,23 @@ Env: SYNAPSE_DB=path/to.db (default: ./.synapse/synapse.db)
 async function main(): Promise<void> {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd) usage();
+
+  if (cmd === "restore") {
+    // Handled before opening the repository: restoring over a live handle corrupts WAL state.
+    const src = rest.find((a) => a !== "--force");
+    if (!src) usage();
+    if (!rest.includes("--force")) {
+      console.error(`This overwrites ${dbPath()}. Re-run with --force to confirm.`);
+      process.exit(1);
+    }
+    const { copyFileSync, rmSync } = await import("node:fs");
+    const target = dbPath();
+    rmSync(`${target}-wal`, { force: true });
+    rmSync(`${target}-shm`, { force: true });
+    copyFileSync(src, target);
+    console.log(`Restored ${target} from ${src}`);
+    return;
+  }
 
   const repo = new MemoryRepository({ path: dbPath() });
 
@@ -107,6 +120,12 @@ async function main(): Promise<void> {
       }
       case "export": {
         console.log(JSON.stringify(repo.exportAll("local"), null, 2));
+        break;
+      }
+      case "backup": {
+        const dest = rest[0] ?? `${dbPath()}.backup-${new Date().toISOString().slice(0, 10)}`;
+        await repo.backup(dest);
+        console.log(`Backed up to ${dest}`);
         break;
       }
       default:

@@ -1,0 +1,30 @@
+# Changelog
+
+All notable changes to Synapse are documented here.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
+
+## [0.2.0] - 2026-07-22
+
+### Added
+- Publishable `synapse-mcp` npm package — install with `claude mcp add synapse -- npx -y synapse-mcp`.
+- Versioned schema migrations (`PRAGMA user_version`); fails closed when a database
+  was written by a newer version of Synapse.
+- `synapse backup [dest]` (online SQLite backup, safe while running) and
+  `synapse restore <src> --force`.
+- MCP-server preflight that auto-rebuilds `better-sqlite3` after a Node upgrade
+  (monorepo dev only).
+
+### Changed
+- **Breaking:** project renamed Mneme → Synapse. Packages `@mneme/*` → `@synapse/*`,
+  env vars `MNEME_*` → `SYNAPSE_*`, CLI command `mneme` → `synapse`, data dir
+  `.mneme/` → `.synapse/`.
+- **Breaking:** CLI and HTTP API default database path is now `~/.synapse/synapse.db`
+  (was `./.synapse/synapse.db` relative to the working directory). Set `SYNAPSE_DB`
+  to keep an existing location.
+- `better-sqlite3` upgraded to v12 (prebuilt binaries for current Node versions).
+
+## [0.1.0]
+
+Initial development: memory tools (`memory_write`, `memory_retrieve`, `memory_digest`,
+`memory_feedback`), hybrid retrieval scoring, entityKey supersession, conflict
+detection, decay, consolidation jobs, audit log, inspector UI, HTTP API, CLI, evals.

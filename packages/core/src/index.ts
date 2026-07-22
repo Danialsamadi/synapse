@@ -6,6 +6,7 @@ export {
   LlmConfigSchema,
   loadEmbeddingConfig,
   loadLlmConfig,
+  resolveDbPath,
   type EmbeddingConfig,
   type LlmConfig,
 } from "./config.js";
