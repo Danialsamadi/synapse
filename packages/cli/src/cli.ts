@@ -24,6 +24,7 @@ Env: SYNAPSE_DB=path/to.db (default: ~/.synapse/synapse.db)
 }
 
 async function main(): Promise<void> {
+  process.env.SYNAPSE_EMBED_PROVIDER ??= "local";
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd) usage();
 

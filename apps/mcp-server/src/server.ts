@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { MemoryRepository, RetrievalService, createEmbedder } from "@synapse/store";
+import { MemoryRepository, RetrievalService, createEmbedder, writeMemory } from "@synapse/store";
 import { TOOL_MAX_IMPORTANCE } from "@synapse/sdk";
 
 const json = (value: unknown) => ({
@@ -26,7 +26,7 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
       },
     },
     async ({ type, content, importance, tags, entityKey }) => {
-      const { memory, supersededIds, deduped } = repo.createWithEntitySupersede({
+      const { memory, supersededIds, deduped, absorbed } = await writeMemory(repo, embedder, {
         userId: "local",
         type,
         content,
@@ -39,12 +39,11 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
       if (deduped) {
         return json({
           deduped: true,
+          ...(absorbed ? { absorbed: true } : {}),
           memory,
           ...(supersededIds.length > 0 ? { supersededIds } : {}),
         });
       }
-      const [vec] = await embedder.embed([memory.content]);
-      if (vec) repo.saveEmbedding(memory.id, vec, embedder.model);
       return json(supersededIds.length > 0 ? { ...memory, supersededIds } : memory);
     },
   );

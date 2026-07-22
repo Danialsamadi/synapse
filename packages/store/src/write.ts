@@ -1,0 +1,63 @@
+import type { CreateMemoryInput, Memory } from "@synapse/core";
+import { cosineSimilarity, type EmbeddingProvider } from "@synapse/embeddings";
+import type { MemoryRepository } from "./memory-repository.js";
+
+export const DEDUP_REJECT_THRESHOLD = 0.95;
+export const DEDUP_ABSORB_THRESHOLD = 0.92;
+
+export interface WriteResult {
+  memory: Memory;
+  supersededIds: string[];
+  deduped: boolean;
+  /** True when a near-duplicate (0.92–0.95 cosine) was refreshed instead of creating a new memory. */
+  absorbed?: boolean;
+}
+
+/**
+ * Single write path: exact content-hash dedup + entityKey supersession
+ * (createWithEntitySupersede), then semantic dedup against active memories of
+ * the same user+type — cosine >= 0.95 returns the existing memory, 0.92–0.95
+ * absorbs into it (touch + tag union). Skipped when entityKey is set, since
+ * supersession is the intended resolution there.
+ */
+export async function writeMemory(
+  repo: MemoryRepository,
+  embedder: EmbeddingProvider,
+  input: CreateMemoryInput,
+): Promise<WriteResult> {
+  const userId = input.userId ?? "local";
+  const [vec] = await embedder.embed([input.content]);
+
+  if (!input.entityKey && vec) {
+    const exact = repo.findActiveByContentHash(userId, input.type, input.content);
+    if (!exact) {
+      const candidates = repo
+        .list(userId, { status: "active" })
+        .filter((m) => m.type === input.type);
+      const vectors = repo.getEmbeddings(candidates.map((m) => m.id));
+      let best: { memory: Memory; sim: number } | null = null;
+      for (const m of candidates) {
+        const v = vectors.get(m.id);
+        if (!v || v.length !== vec.length) continue;
+        const sim = cosineSimilarity(vec, v);
+        if (!best || sim > best.sim) best = { memory: m, sim };
+      }
+      if (best && best.sim >= DEDUP_REJECT_THRESHOLD) {
+        repo.touchAccessed([best.memory.id]);
+        repo.addAudit("dedup", JSON.stringify({ keptId: best.memory.id, sim: best.sim }));
+        return { memory: best.memory, supersededIds: [], deduped: true };
+      }
+      if (best && best.sim >= DEDUP_ABSORB_THRESHOLD) {
+        const tags = [...new Set([...best.memory.tags, ...(input.tags ?? [])])];
+        const updated = repo.update(best.memory.id, { tags }) ?? best.memory;
+        repo.touchAccessed([updated.id]);
+        repo.addAudit("absorb", JSON.stringify({ keptId: updated.id, sim: best.sim }));
+        return { memory: updated, supersededIds: [], deduped: true, absorbed: true };
+      }
+    }
+  }
+
+  const result = repo.createWithEntitySupersede(input);
+  if (!result.deduped && vec) repo.saveEmbedding(result.memory.id, vec, embedder.model);
+  return result;
+}

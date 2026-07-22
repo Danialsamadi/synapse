@@ -1,5 +1,5 @@
 import { loadEmbeddingConfig, loadLlmConfig } from "@synapse/core";
-import { HashEmbeddingProvider, OpenAiEmbeddingProvider, type EmbeddingProvider } from "@synapse/embeddings";
+import { HashEmbeddingProvider, LocalEmbeddingProvider, OpenAiEmbeddingProvider, type EmbeddingProvider } from "@synapse/embeddings";
 import { FakeLlm, OpenAiCompatLlm, type LlmClient } from "./jobs/llm.js";
 
 export function createEmbedder(): EmbeddingProvider {
@@ -11,6 +11,8 @@ export function createEmbedder(): EmbeddingProvider {
         apiKey: cfg.apiKey,
         model: cfg.model,
       });
+    case "local":
+      return new LocalEmbeddingProvider();
     case "hash":
     default:
       return new HashEmbeddingProvider();

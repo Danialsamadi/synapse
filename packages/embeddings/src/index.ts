@@ -45,3 +45,4 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 export { OpenAiEmbeddingProvider, type OpenAiEmbeddingOptions } from "./openai.js";
+export { LocalEmbeddingProvider } from "./local.js";

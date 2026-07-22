@@ -3,6 +3,19 @@
 All notable changes to Synapse are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Local semantic embeddings by default (all-MiniLM-L6-v2 via transformers.js, 384 dims,
+  ~25MB one-time download, no API key). `SYNAPSE_EMBED_PROVIDER=hash|openai` overrides.
+- Semantic dedup-on-insert in the shared `writeMemory()` path: cosine ≥ 0.95 returns the
+  existing memory, 0.92–0.95 absorbs (tag union + freshness touch). Skipped for
+  entityKey writes, where supersession is the intended resolution.
+
+### Fixed
+- Retrieval no longer compares embeddings of mismatched dimensions (different
+  providers); such pairs score 0 instead of noise.
+
 ## [0.2.0] - 2026-07-22
 
 ### Added

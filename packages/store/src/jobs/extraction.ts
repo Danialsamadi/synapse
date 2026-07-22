@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { EmbeddingProvider } from "@synapse/embeddings";
 import type { MemoryRepository } from "../memory-repository.js";
 import { detectAndResolve, type ConflictPolicy } from "./conflicts.js";
+import { writeMemory } from "../write.js";
 import type { LlmClient } from "./llm.js";
 
 export const ExtractedFactsSchema = z.object({
@@ -64,9 +65,9 @@ export async function consolidate(
   const validEpisodeIds = new Set(episodes.map((e) => e.id));
   for (const fact of parsed.facts) {
     const supporting = fact.supportingEpisodeIds.filter((id) => validEpisodeIds.has(id));
-    // Dedupe lives in createWithEntitySupersede so a repeated fact can still
-    // pick up a new entityKey and supersede its siblings.
-    const { memory, deduped } = repo.createWithEntitySupersede({
+    // Dedupe lives in writeMemory (exact + semantic) so a repeated fact can
+    // still pick up a new entityKey and supersede its siblings.
+    const { memory, deduped } = await writeMemory(repo, embedder, {
       userId,
       type: "semantic",
       content: fact.content,
@@ -79,8 +80,6 @@ export async function consolidate(
       result.duplicates++;
       continue;
     }
-    const [vec] = await embedder.embed([memory.content]);
-    if (vec) repo.saveEmbedding(memory.id, vec, embedder.model);
     for (const epId of supporting) {
       repo.addLink(epId, memory.id, "supports");
       repo.addLink(memory.id, epId, "derived_from");

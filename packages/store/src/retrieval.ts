@@ -59,7 +59,9 @@ export class RetrievalService {
 
     const scored = candidates.map((m) => {
       const vec = vectors.get(m.id);
-      const vectorSim = queryVec && vec ? cosineSimilarity(queryVec, vec) : 0;
+      // Dims mismatch = embedding from a different provider; similarity would be noise.
+      const vectorSim =
+        queryVec && vec && vec.length === queryVec.length ? cosineSimilarity(queryVec, vec) : 0;
       const { score, breakdown } = hybridScore({
         vectorSim,
         keywordScore: keywordScore(req.query, m.content),

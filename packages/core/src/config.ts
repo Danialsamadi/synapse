@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const EmbeddingConfigSchema = z.object({
-  provider: z.enum(["hash", "openai"]).default("hash"),
+  provider: z.enum(["hash", "local", "openai"]).default("hash"),
   baseUrl: z.string().url().default("https://api.openai.com/v1"),
   apiKey: z.string().default(""),
   model: z.string().default("text-embedding-3-small"),

@@ -13,7 +13,7 @@ import {
   MemoryTypeSchema,
   resolveDbPath,
 } from "@synapse/core";
-import { MemoryRepository, RetrievalService, consolidate, createEmbedder, createLlm, runDecay } from "@synapse/store";
+import { MemoryRepository, RetrievalService, consolidate, createEmbedder, createLlm, runDecay, writeMemory } from "@synapse/store";
 import type { JobRow } from "@synapse/store";
 
 export async function createServer(repo?: MemoryRepository, opts?: { port?: number; hostname?: string }) {
@@ -76,11 +76,8 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
       ? json.map((j) => CreateMemoryInputSchema.parse(j))
       : [CreateMemoryInputSchema.parse(json)];
     const results = await Promise.all(inputs.map(async (input) => {
-      const { memory, deduped } = repository.createWithEntitySupersede(input);
-      if (deduped) return { deduped: true as const, memory };
-      const [vec] = await embedder.embed([memory.content]);
-      if (vec) repository.saveEmbedding(memory.id, vec, embedder.model);
-      return { deduped: false as const, memory };
+      const { memory, deduped } = await writeMemory(repository, embedder, input);
+      return { deduped, memory };
     }));
     if (!Array.isArray(json)) {
       const first = results[0]!;
@@ -273,6 +270,9 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
 
 // Default startup behavior
 if (process.argv[1] && process.argv[1].endsWith("server.ts")) {
+  // Real semantic embeddings by default when run as a server; tests that
+  // import createServer() directly keep the fast hash provider.
+  process.env.SYNAPSE_EMBED_PROVIDER ??= "local";
   createServer().then((server) => {
     const port = Number(process.env.PORT ?? 8787);
     console.log(`synapse-api listening on http://localhost:${port}`);
