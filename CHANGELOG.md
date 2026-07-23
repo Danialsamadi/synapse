@@ -6,6 +6,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- Inspector dark mode: composed dark palette (not inverted), system-default with
+  a header toggle persisted in localStorage; all colors flow through tokens.
+- Inspector motion: new feed events land with an action-colored pulse, analytics
+  bars grow in with capped stagger; respects prefers-reduced-motion.
 - Inspector Analytics tab: 14-day write/retrieval activity and lifecycle charts
   (inline SVG), retrieval quality stats (latency, candidates, empty-result and
   dedup rates), hot-memories table, cold share — backed by GET /v1/analytics.

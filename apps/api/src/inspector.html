@@ -12,12 +12,25 @@
     --paper: #F7F7F5; --card: #FFFFFF; --ink: #1C1D20; --mute: #63666C;
     --faint: #9B9EA3; --line: #E5E4E0; --wash: #EFEFEC;
     --iris: #5B5BD6; --green: #3D8A5F; --amber: #A87B14; --red: #C6544A; --slate: #4E8FA8;
+    --tag-bg: #5B5BD612; --select: #5B5BD622; --scrim: rgba(28,29,32,.28);
+    --drawer-shadow: -16px 8px 40px rgba(28,29,32,.10);
     --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
+  /* Dark is composed, not inverted: warm-black paper, cards one step lighter,
+     accents lifted in lightness so they hold ≥4.5:1 on the dark card. */
+  [data-theme="dark"] {
+    --paper: #161719; --card: #1E1F23; --ink: #E9E9E6; --mute: #A8ABB2;
+    --faint: #7C8088; --line: #2C2D32; --wash: #26272C;
+    --iris: #9598EC; --green: #6CBE93; --amber: #D9AC48; --red: #E58880; --slate: #7FBBD4;
+    --tag-bg: #9598EC1F; --select: #9598EC33; --scrim: rgba(0,0,0,.52);
+    --drawer-shadow: -16px 8px 40px rgba(0,0,0,.45);
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font: 14px/1.55 var(--sans); background: var(--paper); color: var(--ink); }
-  ::selection { background: #5B5BD622; }
+  body, header, .stat-card, .feed-item, .drawer, input, select, button {
+    transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease; }
+  ::selection { background: var(--select); }
   :focus-visible { outline: 2px solid var(--iris); outline-offset: 1px; border-radius: 2px; }
 
   header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
@@ -80,12 +93,28 @@
     text-transform: uppercase; color: var(--mute); font-weight: 500; margin-bottom: 10px; }
   .stat-card pre { font-family: var(--mono); }
 
-  .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(28,29,32,.28); z-index: 100; }
+  .drawer-overlay { display: none; position: fixed; inset: 0; background: var(--scrim); z-index: 100; }
   .drawer-overlay.open { display: flex; justify-content: flex-end; }
   .drawer { width: 480px; max-width: 92vw; background: var(--card); border-left: 1px solid var(--line);
-    box-shadow: -16px 0 40px rgba(28,29,32,.10); overflow-y: auto; padding: 24px; height: 100vh;
-    position: relative; animation: slide-in 160ms ease-out; }
+    box-shadow: var(--drawer-shadow); overflow-y: auto; padding: 24px; height: 100vh;
+    position: relative; animation: slide-in 200ms cubic-bezier(0.16, 1, 0.3, 1); }
   @keyframes slide-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* The heartbeat: a new event lands with a pulse of its own action color that
+     settles into the resting row — the seismogram registers the beat. */
+  @media (prefers-reduced-motion: no-preference) {
+    .feed-item.fresh { animation: land 500ms cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes land {
+      from { transform: translateY(-5px); opacity: 0; background: var(--wash); }
+      40% { opacity: 1; }
+      to { transform: none; background: var(--card); }
+    }
+    .bar-anim { transform-box: fill-box; transform-origin: bottom;
+      animation: grow 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+    @keyframes grow { from { transform: scaleY(0); } }
+    .tab-btn { transition: color 140ms ease, border-bottom-color 140ms ease; }
+    .feed-controls button, .clickable { transition: color 120ms ease, border-color 120ms ease; }
+  }
   @media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
   .drawer h2 { font-size: 16px; line-height: 1.4; margin-bottom: 14px; padding-right: 28px; }
   .drawer h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
@@ -104,7 +133,7 @@
   .score-bar-fill { height: 100%; border-radius: 3px; }
   .empty { color: var(--faint); padding: 28px; text-align: center; font-size: 13px; }
   .tag { display: inline-block; font-family: var(--mono); font-size: 11px;
-    background: #5B5BD612; color: var(--iris); padding: 1px 6px; border-radius: 4px; margin: 1px 2px; }
+    background: var(--tag-bg); color: var(--iris); padding: 1px 6px; border-radius: 4px; margin: 1px 2px; }
   .status-active { color: var(--green); }
   .status-superseded { color: var(--faint); text-decoration: line-through; }
   .status-disputed { color: var(--amber); }
@@ -119,6 +148,7 @@
     <button class="tab-btn" data-tab="memories">Memories</button>
     <button class="tab-btn" data-tab="analytics">Analytics</button>
     <button class="tab-btn" data-tab="health">Health</button>
+    <button class="tab-btn" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
   </nav>
 </header>
 
@@ -174,11 +204,22 @@
 const API = window.location.origin;
 let feedPaused = false;
 let feedInterval = null;
+let lastSeenEventId = null;
+
+// --- Theme ---
+const savedTheme = localStorage.getItem("synapse-theme");
+if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+else if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme = "dark";
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem("synapse-theme", next);
+});
 
 // --- Tab switching ---
-document.querySelectorAll(".tab-btn").forEach(btn => {
+document.querySelectorAll(".tab-btn[data-tab]").forEach(btn => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab-btn[data-tab]").forEach(b => b.classList.remove("active"));
     document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
     btn.classList.add("active");
     document.getElementById(btn.dataset.tab + "-tab").classList.add("active");
@@ -272,7 +313,8 @@ function renderFeedItem(e) {
     default:
       text = esc(d.raw || JSON.stringify(d));
   }
-  return `<div class="feed-item act-${e.action}"><span class="act-label">${esc(e.action)}</span><span class="detail">${text}</span><span class="time">${formatTime(e.createdAt)}</span></div>`;
+  const fresh = lastSeenEventId !== null && e.id > lastSeenEventId ? " fresh" : "";
+  return `<div class="feed-item act-${e.action}${fresh}"><span class="act-label">${esc(e.action)}</span><span class="detail">${text}</span><span class="time">${formatTime(e.createdAt)}</span></div>`;
 }
 
 async function loadFeed() {
@@ -285,6 +327,7 @@ async function loadFeed() {
   document.getElementById("feed-list").innerHTML = filtered.length
     ? filtered.map(renderFeedItem).join("")
     : '<div class="empty">No events yet. Write or retrieve a memory and it will appear here.</div>';
+  if (events.length) lastSeenEventId = Math.max(...events.map(e => e.id));
 }
 
 function startFeed() { loadFeed(); feedInterval = setInterval(loadFeed, 3000); }
@@ -366,10 +409,11 @@ function barChart(series, keys, colors, height = 90) {
     const h = ((d[k] || 0) / max) * (height - 18);
     const w = bw * 0.36;
     const x = i * bw + bw * 0.12 + j * (w + bw * 0.04);
-    return `<rect x="${x}%" y="${height - 14 - h}" width="${w}%" height="${h}" fill="${colors[j]}"><title>${d.date}: ${d[k] || 0} ${k}</title></rect>`;
+    const delay = Math.min(i * 22, 300);
+    return `<rect class="bar-anim" style="animation-delay:${delay}ms" x="${x}%" y="${height - 14 - h}" width="${w}%" height="${h}" fill="${colors[j]}"><title>${d.date}: ${d[k] || 0} ${k}</title></rect>`;
   }).join("")).join("");
   const labels = series.map((d, i) => i % Math.ceil(series.length / 7) === 0
-    ? `<text x="${i * bw + bw / 2}%" y="${height - 2}" font-size="8" text-anchor="middle" fill="#9B9EA3">${d.date.slice(5)}</text>` : "").join("");
+    ? `<text x="${i * bw + bw / 2}%" y="${height - 2}" font-size="8" text-anchor="middle" style="fill:var(--faint)">${d.date.slice(5)}</text>` : "").join("");
   return `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" style="width:100%;height:${height}px">${bars}${labels}</svg>`;
 }
 
