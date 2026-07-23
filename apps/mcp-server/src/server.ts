@@ -7,6 +7,16 @@ const json = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
 });
 
+/** "today", "yesterday", "5 days ago (2026-07-18)" — in the reader's local timezone. */
+function humanizeWhen(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOfDay(now) - startOfDay(d)) / 86_400_000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  return `${days} days ago (${iso.slice(0, 10)})`;
+}
+
 export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
   const embedder = createEmbedder();
   const retrieval = new RetrievalService(repo, embedder);
@@ -76,7 +86,9 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
           note: "No sufficiently relevant memories found. Do not fabricate an answer from memory — say you don't know or ask the user.",
         });
       }
-      return json(result);
+      // ISO timestamps alone don't register as "today" for many models; say it in words.
+      const memories = result.memories.map((m) => ({ ...m, when: humanizeWhen(m.createdAt) }));
+      return json({ ...result, memories });
     },
   );
 
