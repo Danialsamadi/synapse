@@ -10,7 +10,7 @@
     "test": "pnpm -r run test",
     "eval": "pnpm --filter @synapse/evals test",
     "cli": "pnpm --filter @synapse/cli start",
-    "mcp": "pnpm --filter @synapse/mcp-server start"
+    "mcp": "pnpm --filter synapse-mcp start"
   },
   "engines": {
     "node": ">=20"
