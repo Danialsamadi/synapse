@@ -90,24 +90,19 @@ async function main(): Promise<void> {
         break;
       }
       case "query": {
-        const flags = rest.filter((a) => a.startsWith("--"));
-        const positional = rest.filter((a) => !a.startsWith("--"));
+        // Walk args once: a --flag consumes the next token as its value, the
+        // rest is query text. (Filtering flags/positionals separately loses
+        // flag values into the query — the old bug.)
+        let type: ReturnType<typeof MemoryTypeSchema.parse> | undefined;
+        let tags: string[] | undefined;
+        const positional: string[] = [];
+        for (let i = 0; i < rest.length; i++) {
+          if (rest[i] === "--type" && rest[i + 1]) type = MemoryTypeSchema.parse(rest[++i]);
+          else if (rest[i] === "--tags" && rest[i + 1]) tags = rest[++i]!.split(",");
+          else positional.push(rest[i]!);
+        }
         const q = positional.join(" ").trim();
         if (!q) usage();
-
-        let type: ReturnType<typeof MemoryTypeSchema.parse> | undefined;
-        const typeIdx = flags.indexOf("--type");
-        const typeVal = typeIdx >= 0 ? flags[typeIdx + 1] : undefined;
-        if (typeVal) {
-          type = MemoryTypeSchema.parse(typeVal);
-        }
-
-        let tags: string[] | undefined;
-        const tagsIdx = flags.indexOf("--tags");
-        const tagsVal = tagsIdx >= 0 ? flags[tagsIdx + 1] : undefined;
-        if (tagsVal) {
-          tags = tagsVal.split(",");
-        }
 
         const svc = new RetrievalService(repo, createEmbedder());
         const res = await svc.retrieve({
