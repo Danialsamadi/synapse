@@ -6,6 +6,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- Inspector first-run guide: "?" panel explaining the feed's tick colors, drawer
+  provenance, analytics, and health — auto-opens once, Escape closes overlays.
+- Inspector color redesign: "bioelectric" palette (cobalt current, teal writes,
+  ochre supersession, vermilion conflict, cyan dedup) composed for both themes.
+- Inspector fonts: system stacks replace Google Fonts — the page now makes zero
+  external requests, matching the local-first promise.
 - Inspector dark mode: composed dark palette (not inverted), system-default with
   a header toggle persisted in localStorage; all colors flow through tokens.
 - Inspector motion: new feed events land with an action-colored pulse, analytics

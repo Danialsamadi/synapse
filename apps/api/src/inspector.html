@@ -4,26 +4,27 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Synapse Inspector</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
 <style>
+  /* Self-contained by principle: local-first means no font CDN calls either.
+     System stacks, chosen per-platform: SF Mono/Cascadia for data, the OS UI
+     face for prose, Georgia's true italic for the wordmark. */
   :root {
-    --paper: #F7F7F5; --card: #FFFFFF; --ink: #1C1D20; --mute: #63666C;
-    --faint: #9B9EA3; --line: #E5E4E0; --wash: #EFEFEC;
-    --iris: #5B5BD6; --green: #3D8A5F; --amber: #A87B14; --red: #C6544A; --slate: #4E8FA8;
-    --tag-bg: #5B5BD612; --select: #5B5BD622; --scrim: rgba(28,29,32,.28);
-    --drawer-shadow: -16px 8px 40px rgba(28,29,32,.10);
-    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --paper: #F6F5F1; --card: #FFFFFF; --ink: #16181B; --mute: #5C6169;
+    --faint: #969BA3; --line: #E4E3DE; --wash: #EEEDE7;
+    --cobalt: #2853D6; --green: #0F8A68; --amber: #A96F0E; --red: #C43D2E; --slate: #1F7F9E;
+    --tag-bg: #2853D614; --select: #2853D626; --scrim: rgba(22,24,27,.30);
+    --drawer-shadow: -16px 8px 40px rgba(22,24,27,.10);
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --serif: Georgia, "Times New Roman", serif;
   }
   /* Dark is composed, not inverted: warm-black paper, cards one step lighter,
      accents lifted in lightness so they hold ≥4.5:1 on the dark card. */
   [data-theme="dark"] {
-    --paper: #161719; --card: #1E1F23; --ink: #E9E9E6; --mute: #A8ABB2;
-    --faint: #7C8088; --line: #2C2D32; --wash: #26272C;
-    --iris: #9598EC; --green: #6CBE93; --amber: #D9AC48; --red: #E58880; --slate: #7FBBD4;
-    --tag-bg: #9598EC1F; --select: #9598EC33; --scrim: rgba(0,0,0,.52);
+    --paper: #121417; --card: #1A1D21; --ink: #E9E9E5; --mute: #A7ABB1;
+    --faint: #7B8087; --line: #2A2D32; --wash: #23262B;
+    --cobalt: #7C9BFF; --green: #4CC9A0; --amber: #E0A83E; --red: #EE8273; --slate: #5FC2E0;
+    --tag-bg: #7C9BFF1F; --select: #7C9BFF33; --scrim: rgba(0,0,0,.55);
     --drawer-shadow: -16px 8px 40px rgba(0,0,0,.45);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -31,11 +32,11 @@
   body, header, .stat-card, .feed-item, .drawer, input, select, button {
     transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease; }
   ::selection { background: var(--select); }
-  :focus-visible { outline: 2px solid var(--iris); outline-offset: 1px; border-radius: 2px; }
+  :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 1px; border-radius: 2px; }
 
   header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
     padding: 18px 28px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-  .wordmark { font-family: "Instrument Serif", Georgia, serif; font-style: italic;
+  .wordmark { font-family: var(--serif); font-style: italic;
     font-size: 24px; font-weight: 400; letter-spacing: .01em; }
   .wordmark small { font-family: var(--mono); font-style: normal; font-size: 10px;
     letter-spacing: .18em; text-transform: uppercase; color: var(--faint); margin-left: 10px; vertical-align: 2px; }
@@ -44,7 +45,7 @@
     background: none; border: none; color: var(--mute); padding: 10px 14px 14px; cursor: pointer;
     border-bottom: 2px solid transparent; margin-bottom: -1px; }
   .tab-btn:hover { color: var(--ink); }
-  .tab-btn.active { color: var(--ink); border-bottom-color: var(--iris); }
+  .tab-btn.active { color: var(--ink); border-bottom-color: var(--cobalt); }
 
   .tab-panel { display: none; max-width: 960px; margin: 0 auto; padding: 22px 28px 48px; }
   .tab-panel.active { display: block; }
@@ -69,7 +70,7 @@
   #feed-list .feed-item, #mem-list .feed-item { border-radius: 0; }
   #feed-list .feed-item:last-child, #mem-list .feed-item:last-child { border-bottom: none; }
   .act-write    { border-left-color: var(--green); }
-  .act-retrieve { border-left-color: var(--iris); }
+  .act-retrieve { border-left-color: var(--cobalt); }
   .act-supersede{ border-left-color: var(--amber); }
   .act-feedback { border-left-color: var(--red); }
   .act-dedup, .act-absorb { border-left-color: var(--slate); }
@@ -78,7 +79,7 @@
     text-transform: uppercase; color: var(--mute); padding-top: 2px; }
   .feed-item .detail { flex: 1; overflow-wrap: anywhere; }
   .feed-item .time { color: var(--faint); font-size: 11px; flex-shrink: 0; padding-top: 1px; }
-  .clickable { color: var(--iris); cursor: pointer; text-decoration: none; }
+  .clickable { color: var(--cobalt); cursor: pointer; text-decoration: none; }
   .clickable:hover { text-decoration: underline; }
 
   table { width: 100%; border-collapse: collapse; }
@@ -114,7 +115,13 @@
     @keyframes grow { from { transform: scaleY(0); } }
     .tab-btn { transition: color 140ms ease, border-bottom-color 140ms ease; }
     .feed-controls button, .clickable { transition: color 120ms ease, border-color 120ms ease; }
+    #theme-toggle { transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), color 140ms ease; }
+    [data-theme="dark"] #theme-toggle { transform: rotate(180deg); }
   }
+  #theme-toggle, #guide-btn { font-size: 13px; padding: 8px 10px 12px; }
+  .guide-tick { display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+    vertical-align: -1px; margin-right: 6px; }
+  .guide-row { margin-bottom: 8px; font-size: 13px; }
   @media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
   .drawer h2 { font-size: 16px; line-height: 1.4; margin-bottom: 14px; padding-right: 28px; }
   .drawer h3 { font-family: var(--mono); font-size: 11px; letter-spacing: .1em;
@@ -133,7 +140,7 @@
   .score-bar-fill { height: 100%; border-radius: 3px; }
   .empty { color: var(--faint); padding: 28px; text-align: center; font-size: 13px; }
   .tag { display: inline-block; font-family: var(--mono); font-size: 11px;
-    background: var(--tag-bg); color: var(--iris); padding: 1px 6px; border-radius: 4px; margin: 1px 2px; }
+    background: var(--tag-bg); color: var(--cobalt); padding: 1px 6px; border-radius: 4px; margin: 1px 2px; }
   .status-active { color: var(--green); }
   .status-superseded { color: var(--faint); text-decoration: line-through; }
   .status-disputed { color: var(--amber); }
@@ -148,7 +155,8 @@
     <button class="tab-btn" data-tab="memories">Memories</button>
     <button class="tab-btn" data-tab="analytics">Analytics</button>
     <button class="tab-btn" data-tab="health">Health</button>
-    <button class="tab-btn" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
+    <button class="tab-btn" id="guide-btn" aria-label="What am I looking at?" title="What am I looking at?">?</button>
+    <button class="tab-btn" id="theme-toggle" aria-pressed="false" aria-label="Toggle dark mode" title="Toggle dark mode">◐</button>
   </nav>
 </header>
 
@@ -210,11 +218,57 @@ let lastSeenEventId = null;
 const savedTheme = localStorage.getItem("synapse-theme");
 if (savedTheme) document.documentElement.dataset.theme = savedTheme;
 else if (matchMedia("(prefers-color-scheme: dark)").matches) document.documentElement.dataset.theme = "dark";
-document.getElementById("theme-toggle").addEventListener("click", () => {
+const themeBtn = document.getElementById("theme-toggle");
+function syncThemeBtn() {
+  const dark = document.documentElement.dataset.theme === "dark";
+  themeBtn.setAttribute("aria-pressed", String(dark));
+  themeBtn.title = dark ? "Switch to light mode" : "Switch to dark mode";
+}
+syncThemeBtn();
+themeBtn.addEventListener("click", () => {
   const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = next;
   localStorage.setItem("synapse-theme", next);
+  syncThemeBtn();
 });
+
+// --- Guide ---
+function showGuide() {
+  document.getElementById("drawer-overlay").classList.add("open");
+  const tick = (v) => `<span class="guide-tick" style="background:var(--${v})"></span>`;
+  document.getElementById("drawer-content").innerHTML = `
+    <h2>What you're looking at</h2>
+    <p style="font-size:13px;color:var(--mute)">This inspector is the window into your agent's memory.
+    Everything here lives in one SQLite file on your machine — nothing leaves it.</p>
+    <h3>Feed</h3>
+    <p class="guide-row">A live log of everything that happens to memory. Each row's colored tick names the event:</p>
+    <div class="guide-row">${tick("green")}<b>write</b> — a new memory was stored</div>
+    <div class="guide-row">${tick("cobalt")}<b>retrieve</b> — the agent searched its memory</div>
+    <div class="guide-row">${tick("amber")}<b>supersede</b> — a newer fact replaced an older one</div>
+    <div class="guide-row">${tick("slate")}<b>dedup / absorb</b> — a near-duplicate was caught instead of stored twice</div>
+    <div class="guide-row">${tick("red")}<b>feedback</b> — the agent flagged a memory as helpful, stale, or wrong</div>
+    <h3>Memories</h3>
+    <p class="guide-row">Browse or search everything stored. Click any memory to open its full record:
+    provenance, links to the memories it superseded or derived from, and its event history.
+    The small bars under search results break the relevance score into its parts
+    (vector · keyword · importance · recency).</p>
+    <h3>Analytics</h3>
+    <p class="guide-row">Is the memory earning its keep? Activity over time, retrieval speed and
+    quality, which memories get used most — and how many never get retrieved at all.</p>
+    <h3>Health</h3>
+    <p class="guide-row">Counts by type and status, embedding coverage and provider, background job
+    results, and the digest — the facts your agent is told at the start of every session.</p>
+    <p style="margin-top:16px;font-size:12px;color:var(--faint)">Reopen this guide anytime with the
+    <b>?</b> in the header. Toggle light/dark with <b>◐</b>.</p>`;
+}
+document.getElementById("guide-btn").addEventListener("click", showGuide);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.getElementById("drawer-overlay").classList.remove("open");
+});
+if (!localStorage.getItem("synapse-guide-seen")) {
+  localStorage.setItem("synapse-guide-seen", "1");
+  showGuide();
+}
 
 // --- Tab switching ---
 document.querySelectorAll(".tab-btn[data-tab]").forEach(btn => {
@@ -379,7 +433,7 @@ async function loadMemories(query, type) {
 function renderScoreBreakdown(bd) {
   const max = 0.5;
   const bars = [
-    { label: "vector", value: bd.vector || 0, color: "var(--iris)" },
+    { label: "vector", value: bd.vector || 0, color: "var(--cobalt)" },
     { label: "keyword", value: bd.keyword || 0, color: "var(--green)" },
     { label: "importance", value: bd.importance || 0, color: "var(--amber)" },
     { label: "recency", value: bd.recency || 0, color: "var(--slate)" },
@@ -441,8 +495,8 @@ async function loadAnalytics() {
   el.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card" style="grid-column:1/-1">
-        <h3>Activity — last ${a.days} days ${legend([["writes", "var(--green)"], ["retrievals", "var(--iris)"]])}</h3>
-        ${barChart(a.activity, ["writes", "retrieves"], ["var(--green)", "var(--iris)"])}
+        <h3>Activity — last ${a.days} days ${legend([["writes", "var(--green)"], ["retrievals", "var(--cobalt)"]])}</h3>
+        ${barChart(a.activity, ["writes", "retrieves"], ["var(--green)", "var(--cobalt)"])}
       </div>
       <div class="stat-card">
         <h3>Retrieval quality</h3>
