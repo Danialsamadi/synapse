@@ -123,3 +123,33 @@ describe("token auth", () => {
     }
   });
 });
+
+describe("GET /v1/analytics", () => {
+  it("returns activity, retrieval quality, hot and cold from audit events", async () => {
+    const w = await fetch(`${baseUrl}/v1/memories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "local", type: "semantic", content: "analytics seed fact" }),
+    });
+    assert.equal(w.status, 201);
+    const r = await fetch(`${baseUrl}/v1/memories/retrieve`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "analytics seed", userId: "local" }),
+    });
+    assert.equal(r.status, 200);
+
+    const res = await fetch(`${baseUrl}/v1/analytics?days=7`);
+    assert.equal(res.status, 200);
+    const a = await res.json() as any;
+    assert.equal(a.days, 7);
+    assert.equal(a.activity.length, 7);
+    const today = a.activity[a.activity.length - 1];
+    assert.ok(today.writes >= 1);
+    assert.ok(today.retrieves >= 1);
+    assert.ok(a.retrieval.total >= 1);
+    assert.ok(a.hot.length >= 1);
+    assert.ok(a.hot[0].preview.length > 0);
+    assert.ok(a.cold.active >= 1);
+  });
+});

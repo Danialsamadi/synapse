@@ -6,6 +6,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- Inspector Analytics tab: 14-day write/retrieval activity and lifecycle charts
+  (inline SVG), retrieval quality stats (latency, candidates, empty-result and
+  dedup rates), hot-memories table, cold share — backed by GET /v1/analytics.
 - Inspector: dedup/absorb feed events rendered with links + filterable; Health tab
   shows the active embedding provider.
 - Multi-agent write safety: busy_timeout=5000 alongside WAL, so concurrent

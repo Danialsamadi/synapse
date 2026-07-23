@@ -228,6 +228,66 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
     return c.json({ events });
   });
 
+  app.get("/v1/analytics", (c) => {
+    const rawDays = Number(c.req.query("days") ?? "14");
+    const days = Number.isFinite(rawDays) ? Math.min(Math.max(1, Math.trunc(rawDays)), 90) : 14;
+    const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+    const events = repository.listAudit(undefined, 10_000).filter((e) => e.createdAt >= cutoff);
+    const parse = (s: string) => { try { return JSON.parse(s) as Record<string, unknown>; } catch { return {}; } };
+
+    const dayOf = (iso: string) => iso.slice(0, 10);
+    const daysList: string[] = [];
+    for (let i = days - 1; i >= 0; i--) daysList.push(dayOf(new Date(Date.now() - i * 86_400_000).toISOString()));
+    const zero = () => Object.fromEntries(daysList.map((d) => [d, 0])) as Record<string, number>;
+    const perDay = { write: zero(), retrieve: zero(), supersede: zero(), conflict: zero() };
+
+    let latencySum = 0, candidateSum = 0, retrieves = 0, empty = 0, writes = 0, dedups = 0;
+    const hits = new Map<string, number>();
+    for (const e of events) {
+      const d = parse(e.detail);
+      const day = dayOf(e.createdAt);
+      if (e.action in perDay && day in perDay.write) perDay[e.action as keyof typeof perDay][day]!++;
+      // Conflict resolutions are supersede events tagged via:"conflict".
+      if (e.action === "supersede" && d.via === "conflict" && day in perDay.conflict) perDay.conflict[day]!++;
+      if (e.action === "retrieve") {
+        retrieves++;
+        latencySum += Number(d.latencyMs ?? 0);
+        candidateSum += Number(d.candidateCount ?? 0);
+        const ids = Array.isArray(d.returnedIds) ? (d.returnedIds as string[]) : [];
+        if (ids.length === 0) empty++;
+        for (const id of ids) hits.set(id, (hits.get(id) ?? 0) + 1);
+      }
+      if (e.action === "write") writes++;
+      if (e.action === "dedup" || e.action === "absorb") dedups++;
+    }
+
+    const active = repository.list("local", { status: "active" });
+    const hot = [...hits.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([id, count]) => {
+        const m = repository.get(id);
+        return { id, count, type: m?.type ?? "?", preview: m?.content.slice(0, 80) ?? "(deleted)" };
+      });
+    const coldCount = active.filter((m) => !hits.has(m.id)).length;
+
+    return c.json({
+      days,
+      auditWindowNote: "Derived from the audit log; pruned events fall outside the window.",
+      activity: daysList.map((d) => ({ date: d, writes: perDay.write[d], retrieves: perDay.retrieve[d] })),
+      lifecycle: daysList.map((d) => ({ date: d, supersedes: perDay.supersede[d], conflicts: perDay.conflict[d] })),
+      retrieval: {
+        total: retrieves,
+        avgLatencyMs: retrieves ? Math.round(latencySum / retrieves) : 0,
+        avgCandidates: retrieves ? Math.round(candidateSum / retrieves) : 0,
+        emptyRate: retrieves ? empty / retrieves : 0,
+        dedupRate: writes + dedups ? dedups / (writes + dedups) : 0,
+      },
+      hot,
+      cold: { neverRetrieved: coldCount, active: active.length },
+    });
+  });
+
   app.get("/v1/stats", (c) => {
     const all = repository.list("local");
     const countsByTypeStatus: Record<string, number> = {};

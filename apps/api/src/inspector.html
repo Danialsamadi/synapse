@@ -116,6 +116,7 @@
   <nav class="tabs">
     <button class="tab-btn active" data-tab="feed">Feed</button>
     <button class="tab-btn" data-tab="memories">Memories</button>
+    <button class="tab-btn" data-tab="analytics">Analytics</button>
     <button class="tab-btn" data-tab="health">Health</button>
   </nav>
 </header>
@@ -157,6 +158,10 @@
   <div id="health-content"></div>
 </div>
 
+<div id="analytics-tab" class="tab-panel">
+  <div id="analytics-content"></div>
+</div>
+
 <div id="drawer-overlay" class="drawer-overlay">
   <div class="drawer" id="drawer">
     <button class="close-btn" id="drawer-close" aria-label="Close">×</button>
@@ -178,6 +183,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
     document.getElementById(btn.dataset.tab + "-tab").classList.add("active");
     if (btn.dataset.tab === "feed" && !feedPaused) startFeed();
     if (btn.dataset.tab === "health") loadHealth();
+    if (btn.dataset.tab === "analytics") loadAnalytics();
     if (btn.dataset.tab === "memories") loadMemories("", "");
   });
 });
@@ -341,6 +347,56 @@ document.getElementById("mem-list-btn").addEventListener("click", () => {
 document.getElementById("mem-type-filter").addEventListener("change", () => {
   loadMemories(document.getElementById("mem-search").value, document.getElementById("mem-type-filter").value);
 });
+
+// --- Analytics tab ---
+function barChart(series, keys, colors, height = 90) {
+  const max = Math.max(1, ...series.flatMap(d => keys.map(k => d[k] || 0)));
+  const bw = 100 / series.length;
+  const bars = series.map((d, i) => keys.map((k, j) => {
+    const h = ((d[k] || 0) / max) * (height - 18);
+    const w = bw * 0.36;
+    const x = i * bw + bw * 0.12 + j * (w + bw * 0.04);
+    return `<rect x="${x}%" y="${height - 14 - h}" width="${w}%" height="${h}" fill="${colors[j]}"><title>${d.date}: ${d[k] || 0} ${k}</title></rect>`;
+  }).join("")).join("");
+  const labels = series.map((d, i) => i % Math.ceil(series.length / 7) === 0
+    ? `<text x="${i * bw + bw / 2}%" y="${height - 2}" font-size="8" text-anchor="middle" fill="#8a8578">${d.date.slice(5)}</text>` : "").join("");
+  return `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" style="width:100%;height:${height}px">${bars}${labels}</svg>`;
+}
+
+async function loadAnalytics() {
+  const res = await fetch(`${API}/v1/analytics?days=14`);
+  const a = await res.json();
+  const pct = (x) => (x * 100).toFixed(0) + "%";
+  const hotRows = a.hot.map(h =>
+    `<tr><td><span class="clickable" onclick="openDrawer('${h.id}')">${h.id.slice(0, 12)}</span></td><td>${h.type}</td><td>${esc(h.preview)}</td><td>${h.count}</td></tr>`
+  ).join("");
+  document.getElementById("analytics-content").innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card" style="grid-column:1/-1">
+        <h3>Activity — last ${a.days} days <small style="color:#8a8578">(writes ■ / retrievals ■)</small></h3>
+        ${barChart(a.activity, ["writes", "retrieves"], ["#3d6b4f", "#b08d3e"])}
+      </div>
+      <div class="stat-card">
+        <h3>Retrieval quality</h3>
+        <p>${a.retrieval.total} retrievals · avg ${a.retrieval.avgLatencyMs}ms · avg ${a.retrieval.avgCandidates} candidates</p>
+        <p style="margin-top:6px">Empty-result rate: <b>${pct(a.retrieval.emptyRate)}</b> · Dedup rate: <b>${pct(a.retrieval.dedupRate)}</b></p>
+      </div>
+      <div class="stat-card">
+        <h3>Cold share</h3>
+        <p><b>${a.cold.neverRetrieved}</b> of ${a.cold.active} active memories never retrieved in window</p>
+      </div>
+      <div class="stat-card" style="grid-column:1/-1">
+        <h3>Lifecycle <small style="color:#8a8578">(supersedes ■ / conflict resolutions ■)</small></h3>
+        ${barChart(a.lifecycle, ["supersedes", "conflicts"], ["#7a5c3e", "#a04545"])}
+      </div>
+      <div class="stat-card" style="grid-column:1/-1">
+        <h3>Hot memories</h3>
+        <table><thead><tr><th>ID</th><th>Type</th><th>Preview</th><th>Hits</th></tr></thead>
+        <tbody>${hotRows || "<tr><td colspan='4'>No retrievals in window</td></tr>"}</tbody></table>
+        <p style="margin-top:6px;color:#8a8578;font-size:11px">${esc(a.auditWindowNote)}</p>
+      </div>
+    </div>`;
+}
 
 // --- Health tab ---
 async function loadHealth() {
