@@ -98,6 +98,7 @@ export const RetrieveRequestSchema = z.object({
   tags: z.array(z.string()).optional(),
   limit: z.number().int().positive().max(50).default(8),
   tokenBudget: z.number().int().positive().optional(),
+  minScore: z.number().min(0).max(1).optional(),
   includeEvidence: z.boolean().optional(),
   includeDisputed: z.boolean().optional(),
   since: z.string().optional(),

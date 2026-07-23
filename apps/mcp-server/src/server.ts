@@ -58,16 +58,24 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
         limit: z.number().int().positive().max(20).optional(),
         types: z.array(z.enum(["episodic", "semantic", "procedural", "working"])).optional(),
         tags: z.array(z.string()).optional(),
+        minScore: z.number().min(0).max(1).optional(),
       },
     },
-    async ({ query, limit, types, tags }) => {
+    async ({ query, limit, types, tags, minScore }) => {
       const result = await retrieval.retrieve({
         query,
         userId: "local",
         limit: limit ?? 8,
         ...(types ? { types } : {}),
         ...(tags ? { tags } : {}),
+        ...(minScore !== undefined ? { minScore } : {}),
       });
+      if (result.memories.length === 0) {
+        return json({
+          ...result,
+          note: "No sufficiently relevant memories found. Do not fabricate an answer from memory — say you don't know or ask the user.",
+        });
+      }
       return json(result);
     },
   );

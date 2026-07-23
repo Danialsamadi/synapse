@@ -75,7 +75,9 @@ export class RetrievalService {
     });
 
     scored.sort((a, b) => b.score - a.score);
-    let top = scored.slice(0, req.limit).map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req, now));
+    // Abstention: below minScore is noise, not evidence — return nothing rather than weakly-related memories.
+    const eligible = req.minScore !== undefined ? scored.filter((s) => s.score >= req.minScore!) : scored;
+    let top = eligible.slice(0, req.limit).map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req, now));
     if (req.tokenBudget) top = packByTokenBudget(top, req.tokenBudget);
     this.repo.touchAccessed(top.map((m) => m.id));
     this.repo.addAudit("retrieve", JSON.stringify({

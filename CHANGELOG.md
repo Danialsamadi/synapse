@@ -6,6 +6,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- LongMemEval benchmark harness (`pnpm --filter @synapse/evals longmemeval`):
+  oracle/S variants, dry-run mode, built-in LLM judge with per-ability accuracy,
+  upstream-compatible hypotheses.jsonl.
+- Abstention: `minScore` on retrieval (core schema, RetrievalService, MCP
+  `memory_retrieve`); empty results carry an explicit don't-fabricate note.
 - Local semantic embeddings by default (all-MiniLM-L6-v2 via transformers.js, 384 dims,
   ~25MB one-time download, no API key). `SYNAPSE_EMBED_PROVIDER=hash|openai` overrides.
 - Semantic dedup-on-insert in the shared `writeMemory()` path: cosine ≥ 0.95 returns the

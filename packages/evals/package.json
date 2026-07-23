@@ -6,7 +6,8 @@
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test src/**/*.test.ts",
-    "eval": "tsx src/run.ts"
+    "eval": "tsx src/run.ts",
+    "longmemeval": "tsx src/longmemeval.ts"
   },
   "dependencies": {
     "@synapse/core": "workspace:*",
