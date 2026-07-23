@@ -142,6 +142,12 @@ export class RetrievalService {
       returnedIds: top.map((m) => m.id),
       candidateCount: candidates.length,
       latencyMs: Math.round(performance.now() - start),
+      // Filters explain 0-candidate results; without them the log is unreadable.
+      ...(req.types ? { types: req.types } : {}),
+      ...(req.tags ? { tags: req.tags } : {}),
+      ...(req.since ? { since: req.since } : {}),
+      ...(req.until ? { until: req.until } : {}),
+      ...(req.minScore !== undefined ? { minScore: req.minScore } : {}),
     }));
     return {
       memories: top,

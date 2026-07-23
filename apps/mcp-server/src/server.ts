@@ -66,7 +66,10 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
       inputSchema: {
         query: z.string().min(1),
         limit: z.number().int().positive().max(20).optional(),
-        types: z.array(z.enum(["episodic", "semantic", "procedural", "working"])).optional(),
+        types: z
+          .array(z.enum(["episodic", "semantic", "procedural", "working"]))
+          .optional()
+          .describe("Usually omit this. Facts are stored as semantic/procedural — filtering to episodic will miss them."),
         tags: z.array(z.string()).optional(),
         minScore: z.number().min(0).max(1).optional(),
       },
@@ -81,9 +84,12 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
         ...(minScore !== undefined ? { minScore } : {}),
       });
       if (result.memories.length === 0) {
+        const filtered = (types?.length || tags?.length) && result.stats.candidateCount === 0;
         return json({
           ...result,
-          note: "No sufficiently relevant memories found. Do not fabricate an answer from memory — say you don't know or ask the user.",
+          note: filtered
+            ? `No memories matched the ${types?.length ? `types=[${types.join(",")}]` : ""}${tags?.length ? ` tags=[${tags.join(",")}]` : ""} filter. Memories of other types may exist — retry this query WITHOUT the types/tags filter before concluding nothing is stored.`
+            : "No sufficiently relevant memories found. Do not fabricate an answer from memory — say you don't know or ask the user.",
         });
       }
       // ISO timestamps alone don't register as "today" for many models; say it in words.
