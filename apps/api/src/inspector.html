@@ -21,7 +21,7 @@
   :focus-visible { outline: 2px solid var(--iris); outline-offset: 1px; border-radius: 2px; }
 
   header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
-    padding: 18px 28px 0; border-bottom: 1px solid var(--line); }
+    padding: 18px 28px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .wordmark { font-family: "Instrument Serif", Georgia, serif; font-style: italic;
     font-size: 24px; font-weight: 400; letter-spacing: .01em; }
   .wordmark small { font-family: var(--mono); font-style: normal; font-size: 10px;
@@ -59,6 +59,7 @@
   .act-retrieve { border-left-color: var(--iris); }
   .act-supersede{ border-left-color: var(--amber); }
   .act-feedback { border-left-color: var(--red); }
+  .act-dedup, .act-absorb { border-left-color: var(--slate); }
   .act-job, .act-export, .act-purge { border-left-color: var(--faint); }
   .act-label { width: 78px; flex-shrink: 0; font-size: 10px; letter-spacing: .1em;
     text-transform: uppercase; color: var(--mute); padding-top: 2px; }
@@ -202,7 +203,7 @@ document.getElementById("drawer-overlay").addEventListener("click", (e) => {
 
 async function loadDrawer(id) {
   const res = await fetch(`${API}/v1/memories/${id}`);
-  if (!res.ok) { document.getElementById("drawer-content").innerHTML = '<p>Memory not found</p>'; return; }
+  if (!res.ok) { document.getElementById("drawer-content").innerHTML = '<div class="empty">Memory not found — it may have been purged.</div>'; return; }
   const m = await res.json();
   const decayPct = Math.round((1 - Math.pow(0.5, daysSince(m.createdAt) / m.decayHalfLifeDays)) * 100);
   document.getElementById("drawer-content").innerHTML = `
@@ -258,6 +259,15 @@ function renderFeedItem(e) {
       break;
     case "absorb":
       text = `near-duplicate absorbed into <span class="clickable" onclick="openDrawer('${d.keptId}')">${(d.keptId || "").slice(0, 12)}</span> (sim ${(d.sim ?? 0).toFixed(2)})`;
+      break;
+    case "job":
+      text = `${esc(d.kind || "job")} job finished — ${esc(summarizeJob(d))}`;
+      break;
+    case "export":
+      text = `exported ${d.count ?? "all"} memories`;
+      break;
+    case "purge":
+      text = `purged ${d.purged ?? d.count ?? ""} memories`;
       break;
     default:
       text = esc(d.raw || JSON.stringify(d));
@@ -359,22 +369,36 @@ function barChart(series, keys, colors, height = 90) {
     return `<rect x="${x}%" y="${height - 14 - h}" width="${w}%" height="${h}" fill="${colors[j]}"><title>${d.date}: ${d[k] || 0} ${k}</title></rect>`;
   }).join("")).join("");
   const labels = series.map((d, i) => i % Math.ceil(series.length / 7) === 0
-    ? `<text x="${i * bw + bw / 2}%" y="${height - 2}" font-size="8" text-anchor="middle" fill="#8a8578">${d.date.slice(5)}</text>` : "").join("");
+    ? `<text x="${i * bw + bw / 2}%" y="${height - 2}" font-size="8" text-anchor="middle" fill="#9B9EA3">${d.date.slice(5)}</text>` : "").join("");
   return `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" style="width:100%;height:${height}px">${bars}${labels}</svg>`;
 }
 
+function legend(pairs) {
+  return `<small style="color:var(--faint);font-weight:400;letter-spacing:0;text-transform:none">${pairs
+    .map(([label, color]) => `<span style="color:${color}">■</span> ${label}`)
+    .join(" · ")}</small>`;
+}
+
 async function loadAnalytics() {
+  const el = document.getElementById("analytics-content");
+  el.innerHTML = '<div class="empty">Loading…</div>';
   const res = await fetch(`${API}/v1/analytics?days=14`);
+  if (!res.ok) { el.innerHTML = '<div class="empty">Analytics unavailable — is the API healthy?</div>'; return; }
   const a = await res.json();
+  const hasActivity = a.activity.some(d => d.writes || d.retrieves);
+  if (!hasActivity) {
+    el.innerHTML = '<div class="empty">No activity in the last 14 days. Write or retrieve a memory and the charts will fill in.</div>';
+    return;
+  }
   const pct = (x) => (x * 100).toFixed(0) + "%";
   const hotRows = a.hot.map(h =>
-    `<tr><td><span class="clickable" onclick="openDrawer('${h.id}')">${h.id.slice(0, 12)}</span></td><td>${h.type}</td><td>${esc(h.preview)}</td><td>${h.count}</td></tr>`
+    `<tr><td><span class="clickable" onclick="openDrawer('${h.id}')">${h.id.slice(0, 12)}</span></td><td><span class="tag">${esc(h.type)}</span></td><td>${esc(h.preview)}</td><td style="text-align:right;font-family:var(--mono)">${h.count}</td></tr>`
   ).join("");
-  document.getElementById("analytics-content").innerHTML = `
+  el.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card" style="grid-column:1/-1">
-        <h3>Activity — last ${a.days} days <small style="color:#8a8578">(writes ■ / retrievals ■)</small></h3>
-        ${barChart(a.activity, ["writes", "retrieves"], ["#3d6b4f", "#b08d3e"])}
+        <h3>Activity — last ${a.days} days ${legend([["writes", "var(--green)"], ["retrievals", "var(--iris)"]])}</h3>
+        ${barChart(a.activity, ["writes", "retrieves"], ["var(--green)", "var(--iris)"])}
       </div>
       <div class="stat-card">
         <h3>Retrieval quality</h3>
@@ -386,20 +410,22 @@ async function loadAnalytics() {
         <p><b>${a.cold.neverRetrieved}</b> of ${a.cold.active} active memories never retrieved in window</p>
       </div>
       <div class="stat-card" style="grid-column:1/-1">
-        <h3>Lifecycle <small style="color:#8a8578">(supersedes ■ / conflict resolutions ■)</small></h3>
-        ${barChart(a.lifecycle, ["supersedes", "conflicts"], ["#7a5c3e", "#a04545"])}
+        <h3>Lifecycle ${legend([["supersedes", "var(--amber)"], ["conflict resolutions", "var(--red)"]])}</h3>
+        ${barChart(a.lifecycle, ["supersedes", "conflicts"], ["var(--amber)", "var(--red)"])}
       </div>
       <div class="stat-card" style="grid-column:1/-1">
         <h3>Hot memories</h3>
-        <table><thead><tr><th>ID</th><th>Type</th><th>Preview</th><th>Hits</th></tr></thead>
-        <tbody>${hotRows || "<tr><td colspan='4'>No retrievals in window</td></tr>"}</tbody></table>
-        <p style="margin-top:6px;color:#8a8578;font-size:11px">${esc(a.auditWindowNote)}</p>
+        <table><thead><tr><th>ID</th><th>Type</th><th>Preview</th><th style="text-align:right">Hits</th></tr></thead>
+        <tbody>${hotRows || "<tr><td colspan='4' class='empty' style='padding:16px'>No retrievals in window</td></tr>"}</tbody></table>
+        <p style="margin-top:8px;color:var(--faint);font-size:11px">${esc(a.auditWindowNote)}</p>
       </div>
     </div>`;
 }
 
 // --- Health tab ---
 async function loadHealth() {
+  const hc = document.getElementById("health-content");
+  if (!hc.innerHTML) hc.innerHTML = '<div class="empty">Loading…</div>';
   const [statsRes, digestRes] = await Promise.all([
     fetch(`${API}/v1/stats`),
     fetch(`${API}/v1/digest?maxItems=5`),
@@ -452,6 +478,14 @@ function formatTime(iso) {
   return d.toLocaleTimeString();
 }
 function daysSince(iso) { return (Date.now() - Date.parse(iso)) / 86400000; }
+function summarizeJob(d) {
+  const parts = [];
+  for (const [k, v] of Object.entries(d)) {
+    if (k === "kind" || typeof v !== "number" || v === 0) continue;
+    parts.push(`${v} ${k.replace(/([A-Z])/g, " $1").toLowerCase()}`);
+  }
+  return parts.join(", ") || "nothing to do";
+}
 
 // --- Init ---
 startFeed();
