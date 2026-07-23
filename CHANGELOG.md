@@ -6,6 +6,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- Graph-aware retrieval: 1-hop link expansion — a hit on a "chapter" memory pulls
+  its "book" along via part_of/related_to links at half score, filling leftover
+  limit slots; supersedes/contradicts edges are never followed. New `part_of`
+  link relation.
 - Plug-and-play embeddings: `SYNAPSE_EMBED_MODEL` now selects the local HF model;
   `synapse reembed` re-embeds every memory after a provider/model switch; README
   gains a provider matrix (local, custom HF model, Ollama, OpenAI, hash).

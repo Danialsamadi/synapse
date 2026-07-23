@@ -32,6 +32,7 @@ export const MemoryLinkSchema = z.object({
     "supersedes",
     "related_to",
     "derived_from",
+    "part_of",
   ]),
   targetId: z.string().min(1),
 });
@@ -113,6 +114,7 @@ export const ScoreBreakdownSchema = z.object({
   recency: z.number().optional(),
   decay: z.number().optional(),
   conflict: z.number().optional(),
+  link: z.number().optional(),
 });
 export type ScoreBreakdown = z.infer<typeof ScoreBreakdownSchema>;
 

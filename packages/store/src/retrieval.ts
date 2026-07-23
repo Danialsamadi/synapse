@@ -134,7 +134,30 @@ export class RetrievalService {
     scored.sort((a, b) => b.score - a.score);
     // Abstention: below minScore is noise, not evidence — return nothing rather than weakly-related memories.
     const eligible = req.minScore !== undefined ? scored.filter((s) => s.score >= req.minScore!) : scored;
-    let top = eligible.slice(0, req.limit).map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req, now));
+    const topScored = eligible.slice(0, req.limit);
+    let top = topScored.map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req, now));
+
+    // 1-hop expansion: a hit on a chapter should bring its book along.
+    // Structural rels only — following supersedes would resurface retired facts.
+    // ponytail: single hop at 0.5x score into leftover limit slots; spreading
+    // activation with depth/decay if graph recall ever proves insufficient.
+    const EXPAND_RELS = new Set(["part_of", "related_to"]);
+    if (top.length > 0 && top.length < req.limit) {
+      const seen = new Set(top.map((t) => t.id));
+      const extras: RetrievedMemory[] = [];
+      for (const { memory: m, score } of topScored) {
+        for (const l of m.links) {
+          if (!EXPAND_RELS.has(l.rel) || seen.has(l.targetId)) continue;
+          const neighbor = this.repo.get(l.targetId);
+          if (!neighbor || neighbor.status !== "active") continue;
+          seen.add(neighbor.id);
+          const linkScore = score * 0.5;
+          extras.push(toRetrieved(neighbor, linkScore, { link: linkScore }, req, now));
+        }
+      }
+      extras.sort((a, b) => b.score - a.score);
+      top = [...top, ...extras.slice(0, req.limit - top.length)];
+    }
     if (req.tokenBudget) top = packByTokenBudget(top, req.tokenBudget);
     this.repo.touchAccessed(top.map((m) => m.id));
     this.repo.addAudit("retrieve", JSON.stringify({
