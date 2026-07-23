@@ -18,3 +18,4 @@ coverage
 *.db-wal
 docs
 docs/
+CLAUDE.md
