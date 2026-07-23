@@ -12,7 +12,11 @@ export function createEmbedder(): EmbeddingProvider {
         model: cfg.model,
       });
     case "local":
-      return new LocalEmbeddingProvider();
+      // Only an explicitly set model reaches the local provider — the config
+      // default ("text-embedding-3-small") is an OpenAI id, not a HF one.
+      return process.env.SYNAPSE_EMBED_MODEL
+        ? new LocalEmbeddingProvider(process.env.SYNAPSE_EMBED_MODEL)
+        : new LocalEmbeddingProvider();
     case "hash":
     default:
       return new HashEmbeddingProvider();

@@ -6,6 +6,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- Plug-and-play embeddings: `SYNAPSE_EMBED_MODEL` now selects the local HF model;
+  `synapse reembed` re-embeds every memory after a provider/model switch; README
+  gains a provider matrix (local, custom HF model, Ollama, OpenAI, hash).
 - Inspector first-run guide: "?" panel explaining the feed's tick colors, drawer
   provenance, analytics, and health — auto-opens once, Escape closes overlays.
 - Inspector color redesign: "bioelectric" palette (cobalt current, teal writes,

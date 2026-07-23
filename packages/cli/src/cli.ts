@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { MemoryTypeSchema, resolveDbPath } from "@synapse/core";
-import { MemoryRepository, RetrievalService, createEmbedder } from "@synapse/store";
+import { MemoryRepository, RetrievalService, createEmbedder, reembedAll } from "@synapse/store";
 
 const dbPath = resolveDbPath;
 
@@ -13,6 +13,7 @@ Usage:
   synapse get <id>
   synapse query <text...> [--type <type>] [--tags <tag1,tag2>]
   synapse export
+  synapse reembed              (after switching embedding provider/model)
   synapse backup [dest]
   synapse restore <src> --force
   synapse delete <id>
@@ -121,6 +122,15 @@ async function main(): Promise<void> {
       }
       case "export": {
         console.log(JSON.stringify(repo.exportAll("local"), null, 2));
+        break;
+      }
+      case "reembed": {
+        const embedder = createEmbedder();
+        console.log(`Re-embedding with ${embedder.model}...`);
+        const { reembedded } = await reembedAll(repo, embedder, (done, total) => {
+          if (done % 128 === 0 || done === total) console.log(`  ${done}/${total}`);
+        });
+        console.log(`Done: ${reembedded} memories re-embedded.`);
         break;
       }
       case "backup": {

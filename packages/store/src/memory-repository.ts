@@ -339,6 +339,23 @@ export class MemoryRepository {
       .run(memoryId, vector.length, JSON.stringify(vector), model, new Date().toISOString());
   }
 
+  /** All memories across users/statuses, for re-embedding after a model switch. */
+  listAllForReembed(): Array<{ id: string; content: string }> {
+    return this.db.prepare("SELECT id, content FROM memories").all() as Array<{
+      id: string;
+      content: string;
+    }>;
+  }
+
+  /** Replaces an embedding outright — the dims guard in saveEmbedding is for
+   *  accidental provider mixing; a deliberate reembed bypasses it. */
+  replaceEmbedding(memoryId: string, vector: number[], model: string): void {
+    this.db.transaction(() => {
+      this.db.prepare(`DELETE FROM embeddings WHERE memory_id = ?`).run(memoryId);
+      this.saveEmbedding(memoryId, vector, model);
+    })();
+  }
+
   getEmbeddings(memoryIds: string[]): Map<string, number[]> {
     const out = new Map<string, number[]>();
     if (memoryIds.length === 0) return out;

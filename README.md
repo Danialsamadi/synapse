@@ -204,9 +204,25 @@ Behavioral evals go beyond retrieval ranking and test outcomes — the failure m
 Storage and retrieval are fully local — SQLite on your disk, no network calls. Two paths send memory content off-device, and only when you opt into them:
 
 - **Consolidation** (`POST /v1/jobs/consolidate`): new episodic memories are sent to the LLM at `SYNAPSE_LLM_BASE_URL` (default `https://api.openai.com/v1`) to extract semantic facts. Point it at a local model (e.g. Ollama) to keep everything on-device.
-- **Embeddings:** the default provider is the offline hash embedder (no network). Only the OpenAI-compatible embedder (`SYNAPSE_EMBED_*`) sends memory text to an external endpoint.
+- **Embeddings:** the default provider runs fully on-device (all-MiniLM-L6-v2 via transformers.js; the model itself downloads once from HuggingFace). Only the OpenAI-compatible embedder (`SYNAPSE_EMBED_PROVIDER=openai`) sends memory text to an external endpoint.
 
 If you never run consolidation and never configure a remote embedder, no memory content leaves your machine.
+
+## Choosing your embedding model (plug and play)
+
+Everything is switchable by env var — no code changes:
+
+| Setup | Env |
+|---|---|
+| Local, no API key (default) | `SYNAPSE_EMBED_PROVIDER=local` — all-MiniLM-L6-v2, 384 dims |
+| Local, different HF model | `SYNAPSE_EMBED_PROVIDER=local SYNAPSE_EMBED_MODEL=Xenova/bge-small-en-v1.5` |
+| Ollama (fully on-device) | `SYNAPSE_EMBED_PROVIDER=openai SYNAPSE_EMBED_BASE_URL=http://localhost:11434/v1 SYNAPSE_EMBED_MODEL=nomic-embed-text` |
+| OpenAI | `SYNAPSE_EMBED_PROVIDER=openai SYNAPSE_EMBED_API_KEY=sk-...` |
+| Offline deterministic (tests) | `SYNAPSE_EMBED_PROVIDER=hash` |
+
+**After switching provider or model, run `synapse reembed`** — it re-embeds every stored memory with the new model. Without it, old memories keep vectors the new model can't compare against and silently fall back to keyword-only scoring.
+
+The LLM for consolidation/conflict jobs is equally pluggable: `SYNAPSE_LLM_BASE_URL` + `SYNAPSE_LLM_MODEL` + `SYNAPSE_LLM_API_KEY` accept any OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, ...). Library users can go further and inject any `EmbeddingProvider` implementation directly into `RetrievalService`/`writeMemory`.
 
 ## 2-minute reviewer script
 
