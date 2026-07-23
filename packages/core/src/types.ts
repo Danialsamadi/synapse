@@ -123,6 +123,7 @@ export const RetrievedMemorySchema = z.object({
   score: z.number(),
   scoreBreakdown: ScoreBreakdownSchema.optional(),
   status: MemoryStatusSchema,
+  createdAt: z.string(),
   evidence: z.array(SourceRefSchema).optional(),
   conflictsWith: z.array(z.string()).optional(),
   qualifier: z.string().optional(),

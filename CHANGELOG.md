@@ -42,6 +42,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
   entityKey writes, where supersession is the intended resolution.
 
 ### Fixed
+- memory_retrieve now includes each memory's createdAt — without it, agents
+  could not answer "what did I tell you today" even when retrieval returned
+  the right memories.
 - Retrieval no longer compares embeddings of mismatched dimensions (different
   providers); such pairs score 0 instead of noise.
 

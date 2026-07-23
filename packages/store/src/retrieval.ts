@@ -174,6 +174,9 @@ function toRetrieved(
     score,
     scoreBreakdown: breakdown,
     status: m.status,
+    // Without the timestamp the consuming LLM cannot answer "when did I tell
+    // you X" — it sees facts but not their age.
+    createdAt: m.createdAt,
     ...(req.includeEvidence ? { evidence: m.sourceRefs } : {}),
     ...(conflicts.length > 0 ? { conflictsWith: conflicts } : {}),
     ...(qualifier ? { qualifier } : {}),
