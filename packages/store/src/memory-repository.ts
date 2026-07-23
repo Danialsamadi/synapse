@@ -36,6 +36,8 @@ export class MemoryRepository {
   constructor(options: MemoryRepositoryOptions = {}) {
     this.db = new Database(options.path ?? ":memory:");
     this.db.pragma("journal_mode = WAL");
+    // Multiple agents may share one DB file; wait for the writer instead of SQLITE_BUSY.
+    this.db.pragma("busy_timeout = 5000");
     runMigrations(this.db);
   }
 

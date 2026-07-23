@@ -109,6 +109,8 @@ export class RetrievalService {
     });
 
     const [queryVec] = await this.embedder.embed([req.query]);
+    // ponytail: linear scan over all candidate vectors — fine at personal scale
+    // (thousands); switch to a sqlite-vec index if retrieval latency ever matters.
     const vectors = this.repo.getEmbeddings(candidates.map((m) => m.id));
     const now = new Date();
 

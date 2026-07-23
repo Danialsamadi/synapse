@@ -6,6 +6,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- Inspector: dedup/absorb feed events rendered with links + filterable; Health tab
+  shows the active embedding provider.
+- Multi-agent write safety: busy_timeout=5000 alongside WAL, so concurrent
+  writers wait instead of failing with SQLITE_BUSY.
 - Digest v2: token budget, pinned memories never cut (Letta priority-0 semantics),
   typed sections with usage descriptions in the rendered text.
 - Time-aware retrieval: relative time phrases in queries ("yesterday", "last week",

@@ -244,7 +244,7 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
       const j = repository.lastDoneJob(kind);
       if (j) lastJobs[kind] = { updatedAt: j.updatedAt, result: j.result ? JSON.parse(j.result) : null };
     }
-    return c.json({ countsByTypeStatus, embeddingCoverage: { withVector: embeddings.size, total: all.length }, quarantineCount: quarantine.length, lastJobs });
+    return c.json({ countsByTypeStatus, embeddingCoverage: { withVector: embeddings.size, total: all.length }, quarantineCount: quarantine.length, lastJobs, embedder: embedder.model });
   });
 
   app.get("/v1/digest", (c) => {

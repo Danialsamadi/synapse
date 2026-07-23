@@ -128,6 +128,8 @@
       <option value="retrieve">Retrievals</option>
       <option value="supersede">Supersedes</option>
       <option value="feedback">Feedback</option>
+      <option value="dedup">Dedups</option>
+      <option value="absorb">Absorbs</option>
     </select>
     <input id="feed-search" type="text" placeholder="Filter text…" style="flex:1;max-width:220px">
     <button id="feed-pause">Pause</button>
@@ -245,6 +247,12 @@ function renderFeedItem(e) {
     case "feedback":
       text = `${d.verdict} on <span class="clickable" onclick="openDrawer('${d.id}')">${(d.id || "").slice(0, 12)}</span>`;
       break;
+    case "dedup":
+      text = `duplicate rejected — kept <span class="clickable" onclick="openDrawer('${d.keptId}')">${(d.keptId || "").slice(0, 12)}</span> (sim ${(d.sim ?? 0).toFixed(2)})`;
+      break;
+    case "absorb":
+      text = `near-duplicate absorbed into <span class="clickable" onclick="openDrawer('${d.keptId}')">${(d.keptId || "").slice(0, 12)}</span> (sim ${(d.sim ?? 0).toFixed(2)})`;
+      break;
     default:
       text = esc(d.raw || JSON.stringify(d));
   }
@@ -361,6 +369,7 @@ async function loadHealth() {
       <div class="stat-card">
         <h3>Embedding coverage</h3>
         <p>${stats.embeddingCoverage.withVector} / ${stats.embeddingCoverage.total} memories have vectors</p>
+        <p style="margin-top:8px">Provider: <code>${esc(stats.embedder || "unknown")}</code></p>
         <p style="margin-top:8px">Quarantine: ${stats.quarantineCount} items</p>
       </div>
       <div class="stat-card">
