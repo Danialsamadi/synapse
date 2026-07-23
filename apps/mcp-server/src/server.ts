@@ -33,9 +33,16 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
         importance: z.number().min(0).max(1).optional(),
         tags: z.array(z.string()).optional(),
         entityKey: z.string().min(1).optional(),
+        links: z
+          .array(z.object({
+            rel: z.enum(["supports", "contradicts", "related_to", "derived_from", "part_of"]),
+            targetId: z.string().min(1),
+          }))
+          .optional()
+          .describe("Structural edges to existing memories, e.g. part_of to link a chapter to its book."),
       },
     },
-    async ({ type, content, importance, tags, entityKey }) => {
+    async ({ type, content, importance, tags, entityKey, links }) => {
       const { memory, supersededIds, deduped, absorbed } = await writeMemory(repo, embedder, {
         userId: "local",
         type,
@@ -46,6 +53,10 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
         ...(entityKey ? { entityKey } : {}),
         sourceRefs: [{ kind: "tool", id: "mcp", observedAt: new Date().toISOString() }],
       });
+      // Links attach even on dedup — relating existing knowledge is still useful.
+      for (const l of links ?? []) {
+        if (repo.get(l.targetId)) repo.addLink(memory.id, l.targetId, l.rel);
+      }
       if (deduped) {
         return json({
           deduped: true,

@@ -182,6 +182,17 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
     return c.json({ winner, loser });
   });
 
+  app.post("/v1/links", async (c) => {
+    const body = z.object({
+      fromId: z.string(),
+      toId: z.string(),
+      rel: z.enum(["supports", "contradicts", "related_to", "derived_from", "part_of"]),
+    }).parse(await c.req.json());
+    if (!repository.get(body.fromId) || !repository.get(body.toId)) return c.json({ error: "not_found" }, 404);
+    repository.addLink(body.fromId, body.toId, body.rel);
+    return c.json({ ok: true }, 201);
+  });
+
   app.get("/v1/about-me", (c) => {
     const userId = c.req.query("userId") ?? "local";
     const semantic = repository.list(userId, { status: "active", type: "semantic" });

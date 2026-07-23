@@ -153,6 +153,7 @@
   <nav class="tabs">
     <button class="tab-btn active" data-tab="feed">Feed</button>
     <button class="tab-btn" data-tab="memories">Memories</button>
+    <button class="tab-btn" data-tab="graph">Graph</button>
     <button class="tab-btn" data-tab="analytics">Analytics</button>
     <button class="tab-btn" data-tab="health">Health</button>
     <button class="tab-btn" id="guide-btn" aria-label="What am I looking at?" title="What am I looking at?">?</button>
@@ -199,6 +200,10 @@
 
 <div id="analytics-tab" class="tab-panel">
   <div id="analytics-content"></div>
+</div>
+
+<div id="graph-tab" class="tab-panel">
+  <div id="graph-content"></div>
 </div>
 
 <div id="drawer-overlay" class="drawer-overlay">
@@ -280,6 +285,7 @@ document.querySelectorAll(".tab-btn[data-tab]").forEach(btn => {
     if (btn.dataset.tab === "feed" && !feedPaused) startFeed();
     if (btn.dataset.tab === "health") loadHealth();
     if (btn.dataset.tab === "analytics") loadAnalytics();
+    if (btn.dataset.tab === "graph") loadGraph();
     if (btn.dataset.tab === "memories") loadMemories("", "");
   });
 });
@@ -439,6 +445,7 @@ function renderScoreBreakdown(bd) {
     { label: "recency", value: bd.recency || 0, color: "var(--slate)" },
     { label: "decay", value: bd.decay || 0, color: "var(--red)" },
     { label: "conflict", value: bd.conflict || 0, color: "var(--red)" },
+    ...(bd.link ? [{ label: "link", value: bd.link, color: "var(--slate)" }] : []),
   ];
   return `<div style="display:flex;gap:6px;margin-top:2px;max-width:420px">${bars.map(b =>
     `<div title="${b.label}: ${b.value.toFixed(3)}" style="flex:1"><div class="score-bar"><div class="score-bar-fill" style="width:${Math.min(100, Math.abs(b.value) / max * 100)}%;background:${b.color}"></div></div><div style="font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:var(--faint);text-align:center;text-transform:uppercase">${b.label.slice(0, 3)}</div></div>`
@@ -454,6 +461,70 @@ document.getElementById("mem-list-btn").addEventListener("click", () => {
 document.getElementById("mem-type-filter").addEventListener("change", () => {
   loadMemories(document.getElementById("mem-search").value, document.getElementById("mem-type-filter").value);
 });
+
+// --- Graph tab ---
+async function loadGraph() {
+  const el = document.getElementById("graph-content");
+  el.innerHTML = '<div class="empty">Loading…</div>';
+  const res = await fetch(`${API}/v1/memories`);
+  const data = await res.json();
+  const all = (data.memories || data).slice(0, 200); // ponytail: cap; cluster/zoom if a store outgrows this
+  if (!all.length) { el.innerHTML = '<div class="empty">No memories yet — the graph draws itself as your agent remembers.</div>'; return; }
+
+  const idx = new Map(all.map((m, i) => [m.id, i]));
+  const edges = [];
+  for (const m of all) for (const l of m.links || [])
+    if (idx.has(l.targetId)) edges.push({ s: idx.get(m.id), t: idx.get(l.targetId), rel: l.rel });
+
+  // Tiny force layout: spring edges, inverse-square repulsion, center pull.
+  const W = 900, H = 520, N = all.length;
+  const px = all.map((_, i) => W / 2 + Math.cos(i * 2.4) * (120 + 8 * i));
+  const py = all.map((_, i) => H / 2 + Math.sin(i * 2.4) * (90 + 5 * i));
+  for (let iter = 0; iter < 200; iter++) {
+    const fx = new Array(N).fill(0), fy = new Array(N).fill(0);
+    for (let a = 0; a < N; a++) for (let b = a + 1; b < N; b++) {
+      const dx = px[a] - px[b], dy = py[a] - py[b];
+      const d2 = Math.max(100, dx * dx + dy * dy), f = 22000 / d2;
+      const d = Math.sqrt(d2);
+      fx[a] += f * dx / d; fy[a] += f * dy / d; fx[b] -= f * dx / d; fy[b] -= f * dy / d;
+    }
+    for (const e of edges) {
+      const dx = px[e.t] - px[e.s], dy = py[e.t] - py[e.s];
+      const d = Math.max(1, Math.hypot(dx, dy)), pull = (d - 110) * 0.02;
+      fx[e.s] += pull * dx / d; fy[e.s] += pull * dy / d;
+      fx[e.t] -= pull * dx / d; fy[e.t] -= pull * dy / d;
+    }
+    for (let i = 0; i < N; i++) {
+      fx[i] += (W / 2 - px[i]) * 0.004; fy[i] += (H / 2 - py[i]) * 0.004;
+      px[i] = Math.min(W - 30, Math.max(30, px[i] + fx[i] * 0.6));
+      py[i] = Math.min(H - 24, Math.max(24, py[i] + fy[i] * 0.6));
+    }
+  }
+
+  const TYPE_COLOR = { semantic: "var(--cobalt)", procedural: "var(--green)", episodic: "var(--amber)", working: "var(--slate)" };
+  const edgeSvg = edges.map(e =>
+    `<g><line x1="${px[e.s].toFixed(1)}" y1="${py[e.s].toFixed(1)}" x2="${px[e.t].toFixed(1)}" y2="${py[e.t].toFixed(1)}"
+       stroke="var(--line)" stroke-width="${e.rel === "supersedes" ? 1 : 1.5}" ${e.rel === "supersedes" ? 'stroke-dasharray="4 3"' : ""}/>
+     <text x="${((px[e.s] + px[e.t]) / 2).toFixed(1)}" y="${((py[e.s] + py[e.t]) / 2 - 4).toFixed(1)}"
+       font-size="8" text-anchor="middle" fill="var(--faint)" font-family="var(--mono)">${e.rel.replace(/_/g, " ")}</text></g>`).join("");
+  const nodeSvg = all.map((m, i) => {
+    const dead = m.status !== "active";
+    const r = m.retention?.mode === "pinned" ? 9 : 7;
+    return `<g class="graph-node" onclick="openDrawer('${m.id}')" style="cursor:pointer">
+      <circle cx="${px[i].toFixed(1)}" cy="${py[i].toFixed(1)}" r="${r}"
+        fill="${dead ? "var(--wash)" : TYPE_COLOR[m.type] || "var(--faint)"}"
+        stroke="${dead ? "var(--faint)" : "var(--card)"}" stroke-width="1.5" ${dead ? 'stroke-dasharray="2 2"' : ""}/>
+      <text x="${px[i].toFixed(1)}" y="${(py[i] - r - 5).toFixed(1)}" font-size="9.5" text-anchor="middle"
+        fill="${dead ? "var(--faint)" : "var(--ink)"}">${esc((m.content || "").slice(0, 34))}${(m.content || "").length > 34 ? "…" : ""}</text>
+      <title>${esc(m.content)} [${m.type}, ${m.status}]</title></g>`;
+  }).join("");
+  const legend = Object.entries(TYPE_COLOR).map(([t, c]) => `<span style="color:${c}">●</span> ${t}`).join(" · ");
+  el.innerHTML = `
+    <div class="stat-card" style="padding:10px 14px">
+      <h3>Memory graph <small style="font-weight:400;letter-spacing:0;text-transform:none;color:var(--faint)">${legend} · dashed = superseded/edge to retired · click a node for provenance</small></h3>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${edgeSvg}${nodeSvg}</svg>
+    </div>`;
+}
 
 // --- Analytics tab ---
 function barChart(series, keys, colors, height = 76) {
