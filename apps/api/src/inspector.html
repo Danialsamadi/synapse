@@ -456,19 +456,24 @@ document.getElementById("mem-type-filter").addEventListener("change", () => {
 });
 
 // --- Analytics tab ---
-function barChart(series, keys, colors, height = 90) {
+function barChart(series, keys, colors, height = 76) {
   const max = Math.max(1, ...series.flatMap(d => keys.map(k => d[k] || 0)));
   const bw = 100 / series.length;
   const bars = series.map((d, i) => keys.map((k, j) => {
-    const h = ((d[k] || 0) / max) * (height - 18);
+    const h = ((d[k] || 0) / max) * (height - 4);
     const w = bw * 0.36;
     const x = i * bw + bw * 0.12 + j * (w + bw * 0.04);
     const delay = Math.min(i * 22, 300);
-    return `<rect class="bar-anim" style="animation-delay:${delay}ms" x="${x}%" y="${height - 14 - h}" width="${w}%" height="${h}" fill="${colors[j]}"><title>${d.date}: ${d[k] || 0} ${k}</title></rect>`;
+    return `<rect class="bar-anim" style="animation-delay:${delay}ms" x="${x}%" y="${height - h}" width="${w}%" height="${h}" fill="${colors[j]}"><title>${d.date}: ${d[k] || 0} ${k}</title></rect>`;
   }).join("")).join("");
-  const labels = series.map((d, i) => i % Math.ceil(series.length / 7) === 0
-    ? `<text x="${i * bw + bw / 2}%" y="${height - 2}" font-size="8" text-anchor="middle" style="fill:var(--faint)">${d.date.slice(5)}</text>` : "").join("");
-  return `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" style="width:100%;height:${height}px">${bars}${labels}</svg>`;
+  // Labels live in HTML, not the SVG: preserveAspectRatio="none" stretches
+  // text glyphs with the container. Each cell is one day, so a flex row of
+  // equal cells lines up with the bars; sparse cells stay empty.
+  const step = Math.ceil(series.length / 7);
+  const cells = series.map((d, i) =>
+    `<span style="flex:1;text-align:center">${i % step === 0 ? d.date.slice(5) : ""}</span>`).join("");
+  return `<svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" style="width:100%;height:${height}px;display:block">${bars}</svg>
+    <div style="display:flex;font-family:var(--mono);font-size:9.5px;letter-spacing:.02em;color:var(--faint);border-top:1px solid var(--line);padding-top:4px;margin-top:2px">${cells}</div>`;
 }
 
 function legend(pairs) {
