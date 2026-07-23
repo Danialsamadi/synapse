@@ -6,6 +6,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- Digest v2: token budget, pinned memories never cut (Letta priority-0 semantics),
+  typed sections with usage descriptions in the rendered text.
+- Time-aware retrieval: relative time phrases in queries ("yesterday", "last week",
+  "3 days ago") map onto since/until filters; explicit filters still win.
 - LongMemEval benchmark harness (`pnpm --filter @synapse/evals longmemeval`):
   oracle/S variants, dry-run mode, built-in LLM judge with per-ability accuracy,
   upstream-compatible hypotheses.jsonl.

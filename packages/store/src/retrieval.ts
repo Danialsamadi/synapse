@@ -12,6 +12,7 @@ import {
 } from "@synapse/core";
 import { cosineSimilarity, type EmbeddingProvider } from "@synapse/embeddings";
 import type { MemoryRepository } from "./memory-repository.js";
+import { parseTimeWindow } from "./time-window.js";
 
 export class RetrievalService {
   constructor(
@@ -24,7 +25,13 @@ export class RetrievalService {
   digest(
     userId: string,
     maxItems = 12,
-  ): { items: Array<{ id: string; type: Memory["type"]; content: string }>; text: string } {
+    tokenBudget?: number,
+  ): {
+    items: Array<{ id: string; type: Memory["type"]; content: string }>;
+    text: string;
+    sections: Array<{ label: string; description: string; items: string[] }>;
+    truncated: boolean;
+  } {
     const active = this.repo
       .list(userId, { status: "active" })
       .filter((m) => m.type !== "working");
@@ -32,10 +39,52 @@ export class RetrievalService {
     const rest = active
       .filter((m) => m.retention.mode !== "pinned")
       .sort((a, b) => b.importance - a.importance);
-    const items = [...pinned, ...rest]
-      .slice(0, maxItems)
-      .map((m) => ({ id: m.id, type: m.type, content: m.content }));
-    return { items, text: items.map((i) => `- [${i.type}] ${i.content}`).join("\n") };
+
+    // Pinned are never cut (Letta priority-0 semantics); the rest fill what's
+    // left of maxItems and the approximate token budget, by importance.
+    const estimate = (s: string) => Math.ceil(s.length / 4);
+    let budget = tokenBudget ?? Infinity;
+    const chosen: Memory[] = [];
+    for (const m of pinned) {
+      chosen.push(m);
+      budget -= estimate(m.content);
+    }
+    let truncated = false;
+    for (const m of rest) {
+      if (chosen.length >= maxItems || budget < estimate(m.content)) {
+        truncated = true;
+        continue;
+      }
+      chosen.push(m);
+      budget -= estimate(m.content);
+    }
+
+    const SECTION_META: Record<string, { label: string; description: string }> = {
+      procedural: {
+        label: "How to work with this user",
+        description: "Standing instructions and preferences for how to behave. Follow these.",
+      },
+      semantic: {
+        label: "Facts about the user",
+        description: "Durable facts. Treat as current truth unless the user contradicts them.",
+      },
+      episodic: {
+        label: "Notable history",
+        description: "Past events for context; use memory_retrieve for details.",
+      },
+    };
+    const sections = Object.entries(SECTION_META)
+      .map(([type, meta]) => ({
+        ...meta,
+        items: chosen.filter((m) => m.type === type).map((m) => m.content),
+      }))
+      .filter((s) => s.items.length > 0);
+
+    const items = chosen.map((m) => ({ id: m.id, type: m.type, content: m.content }));
+    const text = sections
+      .map((s) => `## ${s.label}\n(${s.description})\n${s.items.map((i) => `- ${i}`).join("\n")}`)
+      .join("\n\n");
+    return { items, text, sections, truncated };
   }
 
   async retrieve(req: RetrieveRequest): Promise<{
@@ -43,6 +92,12 @@ export class RetrievalService {
     stats: { candidateCount: number; latencyMs: number };
   }> {
     const start = performance.now();
+    // Explicit since/until win; otherwise mine the query for relative time
+    // ("yesterday", "last week") so temporal questions filter by date.
+    if (req.since === undefined && req.until === undefined) {
+      const window = parseTimeWindow(req.query);
+      req = { ...req, ...window };
+    }
     const active = this.repo.list(req.userId, { status: "active" });
     const disputed = req.includeDisputed ? this.repo.list(req.userId, { status: "disputed" }) : [];
     const candidates = [...active, ...disputed].filter((m) => {

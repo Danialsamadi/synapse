@@ -85,9 +85,12 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
     {
       description:
         "Get the always-on core memory digest: pinned and most important durable facts about the user. Call this once at the START of a session and keep the result in mind for the whole conversation.",
-      inputSchema: { maxItems: z.number().int().positive().max(50).optional() },
+      inputSchema: {
+        maxItems: z.number().int().positive().max(50).optional(),
+        tokenBudget: z.number().int().positive().optional(),
+      },
     },
-    async ({ maxItems }) => json(retrieval.digest("local", maxItems ?? 12)),
+    async ({ maxItems, tokenBudget }) => json(retrieval.digest("local", maxItems ?? 12, tokenBudget)),
   );
 
   server.registerTool(

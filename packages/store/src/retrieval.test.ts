@@ -103,7 +103,7 @@ describe("digest", () => {
     assert.equal(d.items.length, 2);
     assert.equal(d.items[0]!.id, pinned.id);
     assert.equal(d.items[1]!.content, "high importance fact");
-    assert.match(d.text, /- \[procedural\] always answer in French/);
+    assert.match(d.text, /## How to work with this user[\s\S]*- always answer in French/);
     assert.doesNotMatch(d.text, /scratch state/);
     repo.close();
   });
@@ -135,7 +135,7 @@ describe("digest edge cases", () => {
     repo.close();
   });
 
-  it("truncates deterministically when pinned memories exceed maxItems", () => {
+  it("never cuts pinned memories, even past maxItems, deterministically", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const svc = new RetrievalService(repo, new HashEmbeddingProvider());
     for (let i = 0; i < 4; i++) {
@@ -146,7 +146,8 @@ describe("digest edge cases", () => {
     }
     const a = svc.digest("local", 2);
     const b = svc.digest("local", 2);
-    assert.equal(a.items.length, 2);
+    assert.equal(a.items.length, 4); // pinned are priority-0: maxItems bounds only unpinned
+
     assert.deepEqual(a.items.map((i) => i.id), b.items.map((i) => i.id));
     assert.ok(a.items.every((i) => i.content.startsWith("pinned fact")));
     repo.close();
