@@ -70,4 +70,42 @@ describe("MIGRATION_V3: memories_fts", () => {
     assert.equal(again.length, 1);
     db.close();
   });
+
+  it("backfill does not corrupt bm25 ranking stats on migration replay", () => {
+    const db = new Database(":memory:");
+    db.exec(MIGRATIONS[0]!);
+    db.exec(MIGRATIONS[1]!);
+    db.pragma("user_version = 2");
+    db.prepare(
+      `INSERT INTO memories (id, user_id, type, status, content, importance, confidence,
+        decay_half_life_days, created_at, updated_at, source_refs_json, links_json,
+        tags_json, retention_json)
+       VALUES ('mem_bm25', 'local', 'semantic', 'active', 'stable bm25 ranking fact', 0.5, 0.7,
+        90, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '[]', '[]', '[]', '{"mode":"default"}')`,
+    ).run();
+    runMigrations(db); // applies V3, backfills the one row
+    const rankAfterFirst = (
+      db
+        .prepare(`SELECT bm25(memories_fts) AS rank FROM memories_fts WHERE memories_fts MATCH '"stable"'`)
+        .get() as { rank: number }
+    ).rank;
+    // Replay migrations from scratch (legacy-adoption re-entry, same path the reviewer flagged).
+    for (let i = 0; i < 3; i++) {
+      db.pragma("user_version = 0");
+      runMigrations(db);
+    }
+    const rankAfterReplay = (
+      db
+        .prepare(`SELECT bm25(memories_fts) AS rank FROM memories_fts WHERE memories_fts MATCH '"stable"'`)
+        .get() as { rank: number }
+    ).rank;
+    assert.ok(
+      Math.abs(rankAfterFirst - rankAfterReplay) < 1e-6,
+      `bm25 rank must be stable across replay: first=${rankAfterFirst} afterReplay=${rankAfterReplay}`,
+    );
+    // Row presence/no-duplication guard (belt-and-suspenders alongside the existing test).
+    const rowCount = (db.prepare(`SELECT COUNT(*) AS c FROM memories_fts`).get() as { c: number }).c;
+    assert.equal(rowCount, 1);
+    db.close();
+  });
 });

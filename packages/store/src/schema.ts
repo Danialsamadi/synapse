@@ -94,8 +94,7 @@ CREATE TRIGGER IF NOT EXISTS memories_fts_au AFTER UPDATE OF content ON memories
   INSERT INTO memories_fts(rowid, content) VALUES (new.rowid, new.content);
 END;
 
-INSERT OR IGNORE INTO memories_fts(rowid, content)
-  SELECT rowid, content FROM memories;
+INSERT INTO memories_fts(memories_fts) VALUES('rebuild');
 `;
 
 /** Ordered migrations; index+1 = schema version stored in PRAGMA user_version. */
