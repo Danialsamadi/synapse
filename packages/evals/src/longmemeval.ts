@@ -3,7 +3,7 @@
  * timestamped sessions into a fresh Synapse store, retrieve, answer with the
  * configured LLM, judge, and print per-ability accuracy.
  *
- * Usage: pnpm --filter @synapse/evals longmemeval [--limit N] [--variant oracle|s]
+ * Usage: pnpm --filter @synapse/evals longmemeval [--limit N] [--variant oracle|s|engram]
  *        [--min-score 0.25] [--judge]
  * Env:   SYNAPSE_LLM_API_KEY (+ optional SYNAPSE_LLM_BASE_URL / SYNAPSE_LLM_MODEL),
  *        SYNAPSE_EMBED_PROVIDER (default local)
@@ -16,7 +16,9 @@ import { MemoryRepository, RetrievalService, writeMemory, createEmbedder, create
 const DATA_URLS: Record<string, string> = {
   oracle:
     "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_oracle.json",
-  s: "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s.json",
+  s: "https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/main/longmemeval_s_cleaned.json",
+  // engram-v3 (MIT): same schema as LongMemEval (inline haystack_sessions), 50-task CI smoke test.
+  engram: "https://huggingface.co/datasets/matthewschramm/engram-v3/resolve/main/engram-v3-test.json",
 };
 
 interface LmeQuestion {
@@ -119,21 +121,30 @@ const hypPath = join(outDir, `hypotheses_${variant}.jsonl`);
 const lines: string[] = [];
 const byType = new Map<string, { total: number; correct: number }>();
 
+let errors = 0;
 for (let i = 0; i < questions.length; i++) {
   const q = questions[i]!;
-  const hypothesis = await answerQuestion(q, minScore, dryRun);
-  lines.push(JSON.stringify({ question_id: q.question_id, hypothesis }));
-  let verdict = "";
-  if (runJudge) {
-    const ok = await judge(q, hypothesis);
-    const t = byType.get(q.question_type) ?? { total: 0, correct: 0 };
-    t.total++;
-    if (ok) t.correct++;
-    byType.set(q.question_type, t);
-    verdict = ok ? " ✓" : " ✗";
+  // A single API error (quota, rate limit, timeout) must not discard the whole
+  // run: record it, keep going, and still write hypotheses + print the table.
+  try {
+    const hypothesis = await answerQuestion(q, minScore, dryRun);
+    lines.push(JSON.stringify({ question_id: q.question_id, hypothesis }));
+    let verdict = "";
+    if (runJudge) {
+      const ok = await judge(q, hypothesis);
+      const t = byType.get(q.question_type) ?? { total: 0, correct: 0 };
+      t.total++;
+      if (ok) t.correct++;
+      byType.set(q.question_type, t);
+      verdict = ok ? " ✓" : " ✗";
+    }
+    console.log(`[${i + 1}/${questions.length}] ${q.question_type}${verdict}`);
+  } catch (err) {
+    errors++;
+    console.log(`[${i + 1}/${questions.length}] ${q.question_type} ERR: ${(err as Error).message.slice(0, 120)}`);
   }
-  console.log(`[${i + 1}/${questions.length}] ${q.question_type}${verdict}`);
 }
+if (errors > 0) console.log(`\n${errors} question(s) errored and were skipped.`);
 
 writeFileSync(hypPath, lines.join("\n") + "\n");
 console.log(`\nHypotheses written to ${hypPath} (compatible with upstream evaluate_qa.py)`);
