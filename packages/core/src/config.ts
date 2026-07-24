@@ -49,3 +49,12 @@ export function resolveDbPath(): string {
   mkdirSync(dirname(path), { recursive: true });
   return path;
 }
+
+/** SYNAPSE_ALLOW_SECRETS=1|true disables the write-time credential gate.
+ *  Env-only by design: a human sets it in server config; an agent cannot
+ *  self-override the way it could a tool parameter. Read at call time so
+ *  tests can toggle it. */
+export function secretsAllowed(): boolean {
+  const v = process.env.SYNAPSE_ALLOW_SECRETS;
+  return v === "1" || v === "true";
+}

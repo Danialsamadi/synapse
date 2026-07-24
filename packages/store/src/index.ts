@@ -2,7 +2,7 @@ export { MemoryRepository } from "./memory-repository.js";
 export type { MemoryRepositoryOptions, JobRow } from "./memory-repository.js";
 export { MIGRATION_V1, MIGRATION_V2 } from "./schema.js";
 export { RetrievalService } from "./retrieval.js";
-export { writeMemory, DEDUP_REJECT_THRESHOLD, DEDUP_ABSORB_THRESHOLD } from "./write.js";
+export { writeMemory, DEDUP_REJECT_THRESHOLD, DEDUP_ABSORB_THRESHOLD, type WriteOutcome, type SecretRejection } from "./write.js";
 export { reembedAll } from "./reembed.js";
 export type { WriteResult } from "./write.js";
 export * from "./jobs/extraction.js";

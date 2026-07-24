@@ -7,6 +7,7 @@ export {
   loadEmbeddingConfig,
   loadLlmConfig,
   resolveDbPath,
+  secretsAllowed,
   type EmbeddingConfig,
   type LlmConfig,
 } from "./config.js";

@@ -23,6 +23,7 @@ export interface ConsolidateResult {
   quarantined: number;
   episodesProcessed: number;
   conflicts: number;
+  secretsRejected: number;
 }
 
 const SYSTEM = `You extract durable semantic facts about the user from episodic memories.
@@ -46,7 +47,7 @@ export async function consolidate(
     .list(userId, { status: "active", type: "episodic" })
     .filter((e) => e.createdAt > since);
 
-  const result: ConsolidateResult = { factsAdded: 0, duplicates: 0, quarantined: 0, episodesProcessed: episodes.length, conflicts: 0 };
+  const result: ConsolidateResult = { factsAdded: 0, duplicates: 0, quarantined: 0, episodesProcessed: episodes.length, conflicts: 0, secretsRejected: 0 };
   if (episodes.length === 0) return result;
 
   const body = episodes.map((e) => `[${e.id}] ${e.content}`).join("\n");
@@ -67,7 +68,7 @@ export async function consolidate(
     const supporting = fact.supportingEpisodeIds.filter((id) => validEpisodeIds.has(id));
     // Dedupe lives in writeMemory (exact + semantic) so a repeated fact can
     // still pick up a new entityKey and supersede its siblings.
-    const { memory, deduped } = await writeMemory(repo, embedder, {
+    const outcome = await writeMemory(repo, embedder, {
       userId,
       type: "semantic",
       content: fact.content,
@@ -76,6 +77,12 @@ export async function consolidate(
       ...(fact.entityKey ? { entityKey: fact.entityKey } : {}),
       sourceRefs: supporting.map((id) => ({ kind: "message" as const, id, observedAt: new Date().toISOString() })),
     });
+    // One secret-looking extraction must not fail the whole job: count and move on.
+    if ("rejected" in outcome) {
+      result.secretsRejected++;
+      continue;
+    }
+    const { memory, deduped } = outcome;
     if (deduped) {
       result.duplicates++;
       continue;

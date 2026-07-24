@@ -1,4 +1,5 @@
 import type { CreateMemoryInput, Memory } from "@synapse/core";
+import { detectSecret, secretsAllowed } from "@synapse/core";
 import { cosineSimilarity, type EmbeddingProvider } from "@synapse/embeddings";
 import type { MemoryRepository } from "./memory-repository.js";
 
@@ -13,6 +14,15 @@ export interface WriteResult {
   absorbed?: boolean;
 }
 
+/** Write refused: content matched a credential pattern and SYNAPSE_ALLOW_SECRETS is unset. */
+export interface SecretRejection {
+  rejected: true;
+  /** Pattern kind only (e.g. "aws-access-key") — never the matched text. */
+  kind: string;
+}
+
+export type WriteOutcome = WriteResult | SecretRejection;
+
 /**
  * Single write path: exact content-hash dedup + entityKey supersession
  * (createWithEntitySupersede), then semantic dedup against active memories of
@@ -24,7 +34,22 @@ export async function writeMemory(
   repo: MemoryRepository,
   embedder: EmbeddingProvider,
   input: CreateMemoryInput,
-): Promise<WriteResult> {
+): Promise<WriteOutcome> {
+  // Secret gate: a credential must never touch disk — reject before embedding,
+  // dedup, or insert. Kind only in the audit; the matched text never leaves
+  // detectSecret. Human opt-out: SYNAPSE_ALLOW_SECRETS=1.
+  if (!secretsAllowed()) {
+    const hit = detectSecret(input.content);
+    if (hit) {
+      repo.addAudit("secret_rejected", JSON.stringify({
+        kind: hit.kind,
+        type: input.type,
+        source: input.source ?? "api",
+      }));
+      return { rejected: true, kind: hit.kind };
+    }
+  }
+
   const userId = input.userId ?? "local";
   const [vec] = await embedder.embed([input.content]);
 
