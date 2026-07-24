@@ -100,7 +100,7 @@ export class RetrievalService {
     }
     const active = this.repo.list(req.userId, { status: "active" });
     const disputed = req.includeDisputed ? this.repo.list(req.userId, { status: "disputed" }) : [];
-    const candidates = [...active, ...disputed].filter((m) => {
+    const eligible = [...active, ...disputed].filter((m) => {
       if (req.types && !req.types.includes(m.type)) return false;
       if (req.tags && !req.tags.some((t) => m.tags.includes(t))) return false;
       if (req.since && m.createdAt < req.since) return false;
@@ -109,19 +109,40 @@ export class RetrievalService {
     });
 
     const [queryVec] = await this.embedder.embed([req.query]);
-    // ponytail: linear scan over all candidate vectors — fine at personal scale
-    // (thousands); switch to a sqlite-vec index if retrieval latency ever matters.
-    const vectors = this.repo.getEmbeddings(candidates.map((m) => m.id));
+    // ponytail: linear scan over all eligible vectors — fine at personal scale
+    // (thousands); the B′ union below saves scoring work, not scan work. Swap
+    // the vector side to a sqlite-vec index if retrieval latency ever matters.
+    const vectors = this.repo.getEmbeddings(eligible.map((m) => m.id));
     const now = new Date();
-
-    const scored = candidates.map((m) => {
+    const sims = new Map<string, number>();
+    for (const m of eligible) {
       const vec = vectors.get(m.id);
       // Dims mismatch = embedding from a different provider; similarity would be noise.
-      const vectorSim =
-        queryVec && vec && vec.length === queryVec.length ? cosineSimilarity(queryVec, vec) : 0;
+      sims.set(
+        m.id,
+        queryVec && vec && vec.length === queryVec.length ? cosineSimilarity(queryVec, vec) : 0,
+      );
+    }
+
+    // B′ candidacy: (FTS keyword hits ∪ vector top-K) — a memory matching
+    // neither is noise for this query; always-know facts are the digest's job.
+    const keywordRanks = this.repo.searchKeyword(req.query);
+    let candidates: Memory[];
+    if (keywordRanks === null) {
+      candidates = eligible; // FTS broken → legacy full scan, substring keyword below
+    } else {
+      const K = Math.max(req.limit * 4, 40);
+      const topK = new Set(
+        [...eligible].sort((a, b) => sims.get(b.id)! - sims.get(a.id)!).slice(0, K).map((m) => m.id),
+      );
+      candidates = eligible.filter((m) => topK.has(m.id) || keywordRanks.has(m.id));
+    }
+
+    const scored = candidates.map((m) => {
       const { score, breakdown } = hybridScore({
-        vectorSim,
-        keywordScore: keywordScore(req.query, m.content),
+        vectorSim: sims.get(m.id)!,
+        keywordScore:
+          keywordRanks === null ? keywordScore(req.query, m.content) : keywordRanks.get(m.id) ?? 0,
         importance: m.importance,
         recency: recencyBoost(m.createdAt, m.lastAccessedAt, now),
         decay: decayPenalty(ageDays(m.createdAt, now), m.decayHalfLifeDays, m.retention.mode),
@@ -133,8 +154,9 @@ export class RetrievalService {
 
     scored.sort((a, b) => b.score - a.score);
     // Abstention: below minScore is noise, not evidence — return nothing rather than weakly-related memories.
-    const eligible = req.minScore !== undefined ? scored.filter((s) => s.score >= req.minScore!) : scored;
-    const topScored = eligible.slice(0, req.limit);
+    const aboveMinScore =
+      req.minScore !== undefined ? scored.filter((s) => s.score >= req.minScore!) : scored;
+    const topScored = aboveMinScore.slice(0, req.limit);
     let top = topScored.map(({ memory: m, score, breakdown }) => toRetrieved(m, score, breakdown, req, now));
 
     // 1-hop expansion: a hit on a chapter should bring its book along.
@@ -164,6 +186,8 @@ export class RetrievalService {
       query: req.query,
       returnedIds: top.map((m) => m.id),
       candidateCount: candidates.length,
+      eligibleCount: eligible.length,
+      ...(keywordRanks === null ? { ftsFallback: true } : {}),
       latencyMs: Math.round(performance.now() - start),
       // Filters explain 0-candidate results; without them the log is unreadable.
       ...(req.types ? { types: req.types } : {}),
@@ -179,7 +203,7 @@ export class RetrievalService {
   }
 }
 
-/** Fraction of query tokens (len>2) present in content. */
+/** Legacy substring keyword score — fallback only, used when the FTS index is unavailable. */
 function keywordScore(query: string, content: string): number {
   const c = content.toLowerCase();
   const tokens = query.toLowerCase().split(/\W+/).filter((t) => t.length > 2);

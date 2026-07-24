@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
+import { HashEmbeddingProvider } from "@synapse/embeddings";
 import { MemoryRepository, buildMatchExpr } from "./memory-repository.js";
+import { RetrievalService } from "./retrieval.js";
 import { MIGRATIONS, runMigrations } from "./schema.js";
 
 /** Raw FTS hits for a MATCH expression — test helper hitting the table directly. */
@@ -187,5 +189,79 @@ describe("buildMatchExpr", () => {
   });
   it("returns null when nothing tokenizes", () => {
     assert.equal(buildMatchExpr("!!!"), null);
+  });
+});
+
+describe("B′ union candidacy", () => {
+  it("a vector-only hit (zero token overlap) still surfaces", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const retrieval = new RetrievalService(repo, embedder);
+    const m = repo.create({ userId: "local", type: "semantic", content: "alpha beta gamma" });
+    const [vec] = await embedder.embed(["totally different words"]);
+    repo.replaceEmbedding(m.id, vec!, "hash"); // force high cosine with the query
+    const { memories } = await retrieval.retrieve({
+      query: "totally different words",
+      userId: "local",
+      limit: 8,
+    });
+    assert.ok(memories.some((r) => r.id === m.id), "vector-only hit must be a candidate");
+  });
+
+  it("keyword hits beyond vector top-K still surface, scored by bm25", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const retrieval = new RetrievalService(repo, embedder);
+    const target = repo.create({ userId: "local", type: "semantic", content: "the xylophone recital" });
+    const [tv] = await embedder.embed([target.content]);
+    repo.saveEmbedding(target.id, tv!, "hash");
+    const { memories } = await retrieval.retrieve({ query: "xylophone", userId: "local", limit: 8 });
+    const hit = memories.find((r) => r.id === target.id);
+    assert.ok(hit);
+    assert.ok((hit!.scoreBreakdown?.keyword ?? 0) > 0, "keyword component must come from bm25");
+  });
+
+  it("falls back to legacy scoring when FTS is broken, and audits it", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const retrieval = new RetrievalService(repo, embedder);
+    const m = repo.create({ userId: "local", type: "semantic", content: "fallback fact about pottery" });
+    const [v] = await embedder.embed([m.content]);
+    repo.saveEmbedding(m.id, v!, "hash");
+    // @ts-expect-error test reaches into the private db handle
+    (repo.db as Database.Database).exec("DROP TABLE memories_fts");
+    const { memories } = await retrieval.retrieve({ query: "pottery", userId: "local", limit: 8 });
+    assert.ok(memories.some((r) => r.id === m.id), "fallback path must still retrieve");
+    const audit = repo.listAudit("retrieve", 1)[0]!;
+    assert.ok(JSON.parse(audit.detail).ftsFallback === true);
+  });
+
+  it("caps candidates at K without error when eligible >> K", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const retrieval = new RetrievalService(repo, embedder);
+    for (let i = 0; i < 50; i++) {
+      const m = repo.create({ userId: "local", type: "semantic", content: `note number ${i} about things` });
+      const [v] = await embedder.embed([m.content]);
+      repo.saveEmbedding(m.id, v!, "hash");
+    }
+    const { memories, stats } = await retrieval.retrieve({ query: "note", userId: "local", limit: 1 });
+    assert.equal(memories.length, 1); // limit respected
+    assert.ok(stats.candidateCount <= 50); // no blowup; union bounded by eligible
+  });
+
+  it("audit records eligibleCount and stats reports union size", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const retrieval = new RetrievalService(repo, embedder);
+    for (let i = 0; i < 5; i++) {
+      const m = repo.create({ userId: "local", type: "semantic", content: `filler memory ${i}` });
+      const [v] = await embedder.embed([m.content]);
+      repo.saveEmbedding(m.id, v!, "hash");
+    }
+    const { stats } = await retrieval.retrieve({ query: "filler", userId: "local", limit: 2 });
+    const detail = JSON.parse(repo.listAudit("retrieve", 1)[0]!.detail);
+    assert.equal(detail.eligibleCount, 5);
+    assert.ok(stats.candidateCount <= 5 && stats.candidateCount >= 1);
   });
 });
