@@ -371,6 +371,34 @@ export class MemoryRepository {
     this.db.prepare(`DELETE FROM embeddings WHERE memory_id = ?`).run(memoryId);
   }
 
+  /** BM25 keyword ranks for a query, min-max normalized to [0,1] (best hit = 1).
+   *  Empty Map = ran, no matches. null = FTS itself failed → caller must fall
+   *  back to legacy substring scoring so retrieval never breaks. */
+  searchKeyword(query: string): Map<string, number> | null {
+    const match = buildMatchExpr(query);
+    if (match === null) return new Map();
+    try {
+      const rows = this.db
+        .prepare(
+          `SELECT m.id, bm25(memories_fts) AS rank
+           FROM memories_fts f JOIN memories m ON m.rowid = f.rowid
+           WHERE memories_fts MATCH ?
+           ORDER BY rank LIMIT 200`,
+        )
+        .all(match) as Array<{ id: string; rank: number }>;
+      const out = new Map<string, number>();
+      if (rows.length === 0) return out;
+      // bm25 is negative-better; min-max over the result set, single hit → 1.
+      const best = rows[0]!.rank;
+      const worst = rows[rows.length - 1]!.rank;
+      const span = worst - best;
+      for (const r of rows) out.set(r.id, span === 0 ? 1 : (worst - r.rank) / span);
+      return out;
+    } catch {
+      return null;
+    }
+  }
+
   touchAccessed(ids: string[]): void {
     if (ids.length === 0) return;
     const now = new Date().toISOString();
@@ -489,6 +517,21 @@ interface Row {
   tags_json: string;
   retention_json: string;
   content_hash: string | null;
+}
+
+/** Safe FTS5 MATCH expression: tokens double-quoted (operators neutralized),
+ *  OR-joined (AND is too strict for natural-language queries; bm25 already
+ *  ranks multi-term hits higher), last token prefix-matched. */
+export function buildMatchExpr(query: string): string | null {
+  const tokens = query
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((t) => t.length > 0)
+    .map((t) => t.replaceAll('"', ""))
+    .filter((t) => t.length > 0);
+  if (tokens.length === 0) return null;
+  const quoted = tokens.map((t) => `"${t}"`);
+  quoted[quoted.length - 1] += "*";
+  return quoted.join(" OR ");
 }
 
 function contentHash(type: string, content: string): string {

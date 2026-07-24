@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { MemoryRepository } from "./memory-repository.js";
+import { MemoryRepository, buildMatchExpr } from "./memory-repository.js";
 import { MIGRATIONS, runMigrations } from "./schema.js";
 
 /** Raw FTS hits for a MATCH expression — test helper hitting the table directly. */
@@ -107,5 +107,56 @@ describe("MIGRATION_V3: memories_fts", () => {
     const rowCount = (db.prepare(`SELECT COUNT(*) AS c FROM memories_fts`).get() as { c: number }).c;
     assert.equal(rowCount, 1);
     db.close();
+  });
+});
+
+describe("searchKeyword", () => {
+  it("scores stemmed matches and normalizes best hit to 1.0", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const a = repo.create({ userId: "local", type: "semantic", content: "loves running and running clubs" });
+    repo.create({ userId: "local", type: "semantic", content: "prefers cycling" });
+    const ranks = repo.searchKeyword("run");
+    assert.ok(ranks instanceof Map);
+    assert.equal(ranks!.get(a.id), 1.0); // only/best hit normalizes to 1
+    assert.equal(ranks!.size, 1);
+  });
+
+  it("is safe against FTS operator injection", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    repo.create({ userId: "local", type: "semantic", content: "plain fact" });
+    for (const q of ['foo OR bar', 'a-b', '"quoted"', 'x*', 'NEAR(a b)', '(paren']) {
+      const ranks = repo.searchKeyword(q);
+      assert.ok(ranks instanceof Map, `query ${JSON.stringify(q)} must not fail`);
+    }
+  });
+
+  it("prefix-matches the last token", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({ userId: "local", type: "semantic", content: "lives in Toronto" });
+    const ranks = repo.searchKeyword("lives in toro");
+    assert.ok(ranks!.has(m.id));
+  });
+
+  it("returns empty Map for no matches and for token-less queries", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    repo.create({ userId: "local", type: "semantic", content: "something" });
+    assert.equal(repo.searchKeyword("zzzqqq")!.size, 0);
+    assert.equal(repo.searchKeyword("!!! ???")!.size, 0);
+  });
+
+  it("returns null when the FTS table is broken", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    // @ts-expect-error test reaches into the private db handle
+    (repo.db as Database.Database).exec("DROP TABLE memories_fts");
+    assert.equal(repo.searchKeyword("anything"), null);
+  });
+});
+
+describe("buildMatchExpr", () => {
+  it("quotes tokens, ORs them, prefixes the last", () => {
+    assert.equal(buildMatchExpr("red running shoes"), '"red" OR "running" OR "shoes"*');
+  });
+  it("returns null when nothing tokenizes", () => {
+    assert.equal(buildMatchExpr("!!!"), null);
   });
 });
