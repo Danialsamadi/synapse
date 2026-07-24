@@ -73,8 +73,33 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 `;
 
+export const MIGRATION_V3 = `
+CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
+  content,
+  content='memories',
+  content_rowid='rowid',
+  tokenize='porter unicode61'
+);
+
+CREATE TRIGGER IF NOT EXISTS memories_fts_ai AFTER INSERT ON memories BEGIN
+  INSERT INTO memories_fts(rowid, content) VALUES (new.rowid, new.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS memories_fts_ad AFTER DELETE ON memories BEGIN
+  INSERT INTO memories_fts(memories_fts, rowid, content) VALUES ('delete', old.rowid, old.content);
+END;
+
+CREATE TRIGGER IF NOT EXISTS memories_fts_au AFTER UPDATE OF content ON memories BEGIN
+  INSERT INTO memories_fts(memories_fts, rowid, content) VALUES ('delete', old.rowid, old.content);
+  INSERT INTO memories_fts(rowid, content) VALUES (new.rowid, new.content);
+END;
+
+INSERT OR IGNORE INTO memories_fts(rowid, content)
+  SELECT rowid, content FROM memories;
+`;
+
 /** Ordered migrations; index+1 = schema version stored in PRAGMA user_version. */
-export const MIGRATIONS: readonly string[] = [MIGRATION_V1, MIGRATION_V2];
+export const MIGRATIONS: readonly string[] = [MIGRATION_V1, MIGRATION_V2, MIGRATION_V3];
 
 import type DatabaseType from "better-sqlite3";
 
