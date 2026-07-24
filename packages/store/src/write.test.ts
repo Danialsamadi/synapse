@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { HashEmbeddingProvider, type EmbeddingProvider } from "@synapse/embeddings";
-import { MemoryRepository } from "./memory-repository.js";
+import { MemoryRepository, SecretContentError } from "./memory-repository.js";
 import { writeMemory } from "./write.js";
 
 /** Embedder with scripted vectors per text, to control similarity exactly. */
@@ -149,5 +149,41 @@ describe("writeMemory secret gate", () => {
     });
     assert.ok(!("rejected" in result));
     assert.equal(repo.list("local").length, 1);
+  });
+});
+
+describe("update() secret gate", () => {
+  it("throws SecretContentError on credential content; original content unchanged; audit logged", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const memory = repo.create({ userId: "local", type: "semantic", content: "original content" });
+    assert.throws(
+      () => repo.update(memory.id, { content: "my aws key is AKIAABCDEFGHIJKLMNOP" }),
+      (err: unknown) => err instanceof SecretContentError && err.kind === "aws-access-key",
+    );
+    assert.equal(repo.get(memory.id)?.content, "original content");
+    const rejectedEvents = repo.listAudit().filter((a) => a.action === "secret_rejected");
+    assert.equal(rejectedEvents.length, 1);
+  });
+
+  it("allows credential content when SYNAPSE_ALLOW_SECRETS=1", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const memory = repo.create({ userId: "local", type: "semantic", content: "original content" });
+    process.env.SYNAPSE_ALLOW_SECRETS = "1";
+    try {
+      const updated = repo.update(memory.id, { content: "my aws key is AKIAABCDEFGHIJKLMNOP" });
+      assert.equal(updated?.content, "my aws key is AKIAABCDEFGHIJKLMNOP");
+    } finally {
+      delete process.env.SYNAPSE_ALLOW_SECRETS;
+    }
+  });
+
+  it("patches without content (tags/status/importance) are unaffected by the gate", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const memory = repo.create({ userId: "local", type: "semantic", content: "original content" });
+    const updated = repo.update(memory.id, { tags: ["x"], status: "archived", importance: 0.9 });
+    assert.equal(updated?.tags.length, 1);
+    assert.equal(updated?.status, "archived");
+    assert.equal(updated?.importance, 0.9);
+    assert.equal(updated?.content, "original content");
   });
 });

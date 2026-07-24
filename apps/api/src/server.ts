@@ -13,7 +13,7 @@ import {
   MemoryTypeSchema,
   resolveDbPath,
 } from "@synapse/core";
-import { MemoryRepository, RetrievalService, consolidate, createEmbedder, createLlm, runDecay, writeMemory } from "@synapse/store";
+import { MemoryRepository, RetrievalService, SecretContentError, consolidate, createEmbedder, createLlm, runDecay, writeMemory } from "@synapse/store";
 import type { JobRow } from "@synapse/store";
 
 export async function createServer(repo?: MemoryRepository, opts?: { port?: number; hostname?: string }) {
@@ -120,9 +120,16 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
   app.patch("/v1/memories/:id", async (c) => {
     const json: unknown = await c.req.json();
     const patch = UpdateMemoryInputSchema.parse(json);
-    const updated = repository.update(c.req.param("id"), patch);
-    if (!updated) return c.json({ error: "not_found" }, 404);
-    return c.json(updated);
+    try {
+      const updated = repository.update(c.req.param("id"), patch);
+      if (!updated) return c.json({ error: "not_found" }, 404);
+      return c.json(updated);
+    } catch (err) {
+      if (err instanceof SecretContentError) {
+        return c.json({ rejected: true, kind: err.kind }, 422);
+      }
+      throw err;
+    }
   });
 
   app.delete("/v1/memories/:id", (c) => {

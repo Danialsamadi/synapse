@@ -12,12 +12,22 @@ import {
   CreateMemoryInputSchema,
   UpdateMemoryInputSchema,
   newMemoryId,
+  detectSecret,
+  secretsAllowed,
 } from "@synapse/core";
 import { runMigrations } from "./schema.js";
 
 export interface MemoryRepositoryOptions {
   /** Path to sqlite file, or ":memory:" for tests. */
   path?: string;
+}
+
+/** Thrown by update() when patch.content is a rejected secret and SYNAPSE_ALLOW_SECRETS is unset. */
+export class SecretContentError extends Error {
+  constructor(public readonly kind: string) {
+    super(`Content update rejected: contains a credential (${kind})`);
+    this.name = "SecretContentError";
+  }
 }
 
 export interface JobRow {
@@ -152,6 +162,13 @@ export class MemoryRepository {
 
   update(id: string, rawPatch: UpdateMemoryInput): Memory | null {
     const patch = UpdateMemoryInputSchema.parse(rawPatch);
+    if (patch.content !== undefined && !secretsAllowed()) {
+      const hit = detectSecret(patch.content);
+      if (hit) {
+        this.addAudit("secret_rejected", JSON.stringify({ id, kind: hit.kind, source: "update" }));
+        throw new SecretContentError(hit.kind);
+      }
+    }
     const existing = this.get(id);
     if (!existing) return null;
     const next: Memory = {

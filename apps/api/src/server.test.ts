@@ -167,3 +167,22 @@ describe("POST /v1/memories secret rejection", () => {
     assert.equal(body.kind, "aws-access-key");
   });
 });
+
+describe("PATCH /v1/memories/:id secret rejection", () => {
+  it("returns 422 for credential content and leaves the memory unchanged", async () => {
+    const created = repo.create({ userId: "local", type: "semantic", content: "original content" });
+    const res = await fetch(`${baseUrl}/v1/memories/${created.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "key: AKIAABCDEFGHIJKLMNOP" }),
+    });
+    assert.equal(res.status, 422);
+    const body = await res.json() as { rejected: boolean; kind: string };
+    assert.equal(body.rejected, true);
+    assert.equal(body.kind, "aws-access-key");
+
+    const getRes = await fetch(`${baseUrl}/v1/memories/${created.id}`);
+    const memory = await getRes.json() as { content: string };
+    assert.equal(memory.content, "original content");
+  });
+});
