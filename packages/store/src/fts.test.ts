@@ -264,4 +264,42 @@ describe("B′ union candidacy", () => {
     assert.equal(detail.eligibleCount, 5);
     assert.ok(stats.candidateCount <= 5 && stats.candidateCount >= 1);
   });
+
+  it("a memory in neither keyword hits nor vector top-K is dropped from candidacy", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const retrieval = new RetrievalService(repo, embedder);
+    const query = "quokka snorkeling festival";
+    const total = 45; // limit:1 -> K = max(1*4, 40) = 40, so 45 eligible guarantees a K-shortfall
+    // 44 memories textually close to the query: high hash-embedding cosine sim (competes
+    // for vector top-K) and share query tokens (keyword hits via FTS bm25).
+    for (let i = 0; i < total - 1; i++) {
+      const m = repo.create({ userId: "local", type: "semantic", content: `${query} note ${i}` });
+      const [v] = await embedder.embed([m.content]);
+      repo.saveEmbedding(m.id, v!, "hash");
+    }
+    // One memory sharing zero query tokens, with unrelated filler content whose
+    // hash-embedding is dissimilar enough to the query to rank outside the top 40 by
+    // cosine similarity (validated: ~0.80 vs ~0.84-0.88 for the near-duplicate set above).
+    const excludedContent =
+      "the municipal zoning board convened tuesday to review parking permit renewals " +
+      "budget line items road resurfacing schedules and unrelated committee " +
+      "correspondence before adjourning for the evening recess";
+    const excluded = repo.create({ userId: "local", type: "semantic", content: excludedContent });
+    const [ev] = await embedder.embed([excludedContent]);
+    repo.saveEmbedding(excluded.id, ev!, "hash");
+
+    const { memories, stats } = await retrieval.retrieve({ query, userId: "local", limit: 1 });
+    assert.ok(!memories.some((r) => r.id === excluded.id));
+    assert.ok(
+      stats.candidateCount < total,
+      `expected candidacy to drop the neither-hit memory, got candidateCount=${stats.candidateCount} of ${total} eligible`,
+    );
+    const detail = JSON.parse(repo.listAudit("retrieve", 1)[0]!.detail);
+    assert.equal(detail.eligibleCount, total);
+    assert.ok(
+      stats.candidateCount < detail.eligibleCount,
+      "candidateCount must be strictly smaller than eligibleCount, proving a memory was dropped before scoring",
+    );
+  });
 });
