@@ -123,4 +123,18 @@ describe("synapse MCP server", () => {
     assert.equal(out.error, "not_found");
     repo.close();
   });
+
+  it("memory_write rejects credential content with an agent-readable reason", async () => {
+    const { repo, client } = await connected();
+    const res = await client.callTool({
+      name: "memory_write",
+      arguments: { type: "semantic", content: "here is my key AKIAABCDEFGHIJKLMNOP" },
+    });
+    const payload = JSON.parse((res.content as Array<{ text: string }>)[0]!.text);
+    assert.equal(payload.rejected, true);
+    assert.match(payload.reason, /aws-access-key/);
+    assert.match(payload.reason, /password manager/);
+    assert.ok(!payload.reason.includes("AKIAABCDEFGHIJKLMNOP"));
+    repo.close();
+  });
 });

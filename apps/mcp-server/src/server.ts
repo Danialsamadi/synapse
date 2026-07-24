@@ -43,7 +43,7 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
       },
     },
     async ({ type, content, importance, tags, entityKey, links }) => {
-      const { memory, supersededIds, deduped, absorbed } = await writeMemory(repo, embedder, {
+      const outcome = await writeMemory(repo, embedder, {
         userId: "local",
         type,
         content,
@@ -53,6 +53,16 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
         ...(entityKey ? { entityKey } : {}),
         sourceRefs: [{ kind: "tool", id: "mcp", observedAt: new Date().toISOString() }],
       });
+      if ("rejected" in outcome) {
+        return json({
+          rejected: true,
+          reason:
+            `Content appears to contain a credential (${outcome.kind}). Synapse does not store secrets — ` +
+            "suggest the user keep it in a password manager instead. A human can override by setting " +
+            "SYNAPSE_ALLOW_SECRETS=1 in the server environment.",
+        });
+      }
+      const { memory, supersededIds, deduped, absorbed } = outcome;
       // Links attach even on dedup — relating existing knowledge is still useful.
       for (const l of links ?? []) {
         if (repo.get(l.targetId)) repo.addLink(memory.id, l.targetId, l.rel);

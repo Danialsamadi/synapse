@@ -153,3 +153,17 @@ describe("GET /v1/analytics", () => {
     assert.ok(a.cold.active >= 1);
   });
 });
+
+describe("POST /v1/memories secret rejection", () => {
+  it("returns 422 for credential content", async () => {
+    const res = await fetch(`${baseUrl}/v1/memories`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: "local", type: "semantic", content: "key: AKIAABCDEFGHIJKLMNOP" }),
+    });
+    assert.equal(res.status, 422);
+    const body = await res.json() as { rejected: boolean; kind: string };
+    assert.equal(body.rejected, true);
+    assert.equal(body.kind, "aws-access-key");
+  });
+});

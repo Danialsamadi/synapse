@@ -76,14 +76,21 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
       ? json.map((j) => CreateMemoryInputSchema.parse(j))
       : [CreateMemoryInputSchema.parse(json)];
     const results = await Promise.all(inputs.map(async (input) => {
-      const { memory, deduped } = await writeMemory(repository, embedder, input);
-      return { deduped, memory };
+      const outcome = await writeMemory(repository, embedder, input);
+      return outcome;
     }));
+    // Any credential rejection in a batch: report it, store nothing extra ourselves
+    // (accepted items in the same batch were already written — report per-item).
     if (!Array.isArray(json)) {
       const first = results[0]!;
+      if ("rejected" in first) return c.json({ rejected: true, kind: first.kind }, 422);
       return first.deduped ? c.json({ deduped: true, ...first.memory }) : c.json(first.memory, 201);
     }
-    return c.json({ results }, 201);
+    return c.json({
+      results: results.map((r) =>
+        "rejected" in r ? { rejected: true, kind: r.kind } : { deduped: r.deduped, memory: r.memory },
+      ),
+    }, 201);
   });
 
   app.get("/v1/memories/:id", (c) => {
