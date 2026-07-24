@@ -94,6 +94,10 @@ CREATE TRIGGER IF NOT EXISTS memories_fts_au AFTER UPDATE OF content ON memories
   INSERT INTO memories_fts(rowid, content) VALUES (new.rowid, new.content);
 END;
 
+-- 'rebuild' (not incremental INSERT OR IGNORE): recomputes FTS5 doc-length
+-- stats from scratch every time, so it stays idempotent on migration replay.
+-- INSERT OR IGNORE looked idempotent (no duplicate rows) but silently
+-- corrupted bm25() ranking stats on replay -- do not revert to it.
 INSERT INTO memories_fts(memories_fts) VALUES('rebuild');
 `;
 
