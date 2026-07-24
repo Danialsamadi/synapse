@@ -10,3 +10,4 @@ export {
   type EmbeddingConfig,
   type LlmConfig,
 } from "./config.js";
+export { detectSecret, type SecretMatch } from "./secrets.js";
