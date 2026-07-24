@@ -121,6 +121,35 @@ describe("searchKeyword", () => {
     assert.equal(ranks!.size, 1);
   });
 
+  it("interpolates multi-hit ranks linearly, with the worst hit floored to exactly 0", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    // Vary term frequency + doc length to force genuine bm25 rank separation.
+    const best = repo.create({ userId: "local", type: "semantic", content: "marathon marathon marathon" });
+    const middle = repo.create({
+      userId: "local",
+      type: "semantic",
+      content: "trained for months and finally ran a marathon this year",
+    });
+    const worst = repo.create({
+      userId: "local",
+      type: "semantic",
+      content:
+        "the city council met on tuesday to discuss zoning permits road repairs " +
+        "budget allocations and a brief unrelated mention of a marathon event " +
+        "before adjourning for lunch and further unrelated committee business",
+    });
+    const ranks = repo.searchKeyword("marathon");
+    assert.ok(ranks instanceof Map);
+    assert.equal(ranks!.size, 3);
+    assert.equal(ranks!.get(best.id), 1);
+    // Known interpolation-floor property (the reviewer's flagged concern): the single
+    // worst-ranked hit in a multi-hit set normalizes to exactly 0, identical to a
+    // non-match. This pins that behavior down so it can't silently drift.
+    assert.equal(ranks!.get(worst.id), 0);
+    const middleRank = ranks!.get(middle.id)!;
+    assert.ok(middleRank > 0 && middleRank < 1, `middle rank must strictly interpolate, got ${middleRank}`);
+  });
+
   it("is safe against FTS operator injection", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     repo.create({ userId: "local", type: "semantic", content: "plain fact" });

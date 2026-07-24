@@ -523,11 +523,7 @@ interface Row {
  *  OR-joined (AND is too strict for natural-language queries; bm25 already
  *  ranks multi-term hits higher), last token prefix-matched. */
 export function buildMatchExpr(query: string): string | null {
-  const tokens = query
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((t) => t.length > 0)
-    .map((t) => t.replaceAll('"', ""))
-    .filter((t) => t.length > 0);
+  const tokens = query.split(/[^\p{L}\p{N}]+/u).filter((t) => t.length > 0);
   if (tokens.length === 0) return null;
   const quoted = tokens.map((t) => `"${t}"`);
   quoted[quoted.length - 1] += "*";
