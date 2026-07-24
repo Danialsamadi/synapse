@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { MemoryTypeSchema, resolveDbPath } from "@synapse/core";
-import { MemoryRepository, RetrievalService, createEmbedder, reembedAll } from "@synapse/store";
+import { MemoryRepository, RetrievalService, createEmbedder, reembedAll, writeMemory } from "@synapse/store";
 
 const dbPath = resolveDbPath;
 
@@ -55,13 +55,28 @@ async function main(): Promise<void> {
         const content = rest.slice(1).join(" ").trim();
         if (!typeRaw || !content) usage();
         const type = MemoryTypeSchema.parse(typeRaw);
-        const existing = repo.findActiveByContentHash("local", type, content);
-        if (existing) {
-          console.log(JSON.stringify({ deduped: true, memory: existing }, null, 2));
+        // Route through writeMemory, not repo.create(): gets the secret gate,
+        // semantic dedup, AND an embedding (direct create() stored none, leaving
+        // CLI memories invisible to vector retrieval).
+        const outcome = await writeMemory(repo, createEmbedder(), {
+          userId: "local",
+          type,
+          content,
+          source: "cli",
+        });
+        if ("rejected" in outcome) {
+          console.error(
+            `Rejected: content appears to contain a credential (${outcome.kind}). ` +
+              `Synapse does not store secrets — use a password manager. Override: SYNAPSE_ALLOW_SECRETS=1`,
+          );
+          process.exitCode = 1;
           break;
         }
-        const memory = repo.create({ userId: "local", type, content, source: "cli" });
-        console.log(JSON.stringify(memory, null, 2));
+        console.log(JSON.stringify(
+          outcome.deduped ? { deduped: true, memory: outcome.memory } : outcome.memory,
+          null,
+          2,
+        ));
         break;
       }
       case "list": {
