@@ -154,6 +154,30 @@ describe("GET /v1/analytics", () => {
   });
 });
 
+describe("GET /v1/analytics avgCandidates continuity", () => {
+  it("prefers eligibleCount, falls back to candidateCount for pre-FTS5 audit rows", async () => {
+    // Own repo/server: the shared one accumulates retrieve events from other tests.
+    const isoRepo = new MemoryRepository({ path: ":memory:" });
+    const isoServer = await createServer(isoRepo, { port: 0 });
+    const addr = isoServer.address();
+    const isoUrl = `http://127.0.0.1:${addr !== null && typeof addr === "object" ? addr.port : 0}`;
+    try {
+      // New-style row (post-FTS5): union shrank candidateCount, eligibleCount keeps the old semantic.
+      isoRepo.addAudit("retrieve", JSON.stringify({ query: "a", returnedIds: [], eligibleCount: 40, candidateCount: 4, latencyMs: 1 }));
+      // Old-style row (pre-FTS5): no eligibleCount.
+      isoRepo.addAudit("retrieve", JSON.stringify({ query: "b", returnedIds: [], candidateCount: 10, latencyMs: 1 }));
+      const res = await fetch(`${isoUrl}/v1/analytics?days=7`);
+      const a = await res.json() as { retrieval: { avgCandidates: number } };
+      // (40 + 10) / 2 — proves both the preference and the fallback in one number:
+      // candidateCount-for-both gives 7, eligibleCount-only gives 20.
+      assert.equal(a.retrieval.avgCandidates, 25);
+    } finally {
+      isoServer.close();
+      isoRepo.close();
+    }
+  });
+});
+
 describe("POST /v1/memories secret rejection", () => {
   it("returns 422 for credential content", async () => {
     const res = await fetch(`${baseUrl}/v1/memories`, {

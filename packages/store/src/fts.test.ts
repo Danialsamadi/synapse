@@ -187,6 +187,9 @@ describe("buildMatchExpr", () => {
   it("quotes tokens, ORs them, prefixes every token", () => {
     assert.equal(buildMatchExpr("red running shoes"), '"red"* OR "running"* OR "shoes"*');
   });
+  it("single token gets prefix", () => {
+    assert.equal(buildMatchExpr("coffee"), '"coffee"*');
+  });
   it("returns null when nothing tokenizes", () => {
     assert.equal(buildMatchExpr("!!!"), null);
   });
@@ -233,7 +236,10 @@ describe("B′ union candidacy", () => {
     const { memories } = await retrieval.retrieve({ query: "pottery", userId: "local", limit: 8 });
     assert.ok(memories.some((r) => r.id === m.id), "fallback path must still retrieve");
     const audit = repo.listAudit("retrieve", 1)[0]!;
-    assert.ok(JSON.parse(audit.detail).ftsFallback === true);
+    const detail = JSON.parse(audit.detail);
+    assert.ok(detail.ftsFallback === true);
+    // Fallback scores ALL eligible — nothing is dropped, and the tripwire says so.
+    assert.equal(detail.unionDropped, 0);
   });
 
   it("caps candidates at K without error when eligible >> K", async () => {
@@ -312,5 +318,23 @@ describe("B′ union candidacy", () => {
     repo.create({ userId: "local", type: "semantic", content: "prefers dark roast coffee" });
     const ranks = repo.searchKeyword("roas beans");
     assert.ok(ranks && ranks.size === 1);
+  });
+
+  it("non-Latin partial token matches via prefix (mid-query)", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    repo.create({ userId: "local", type: "semantic", content: "قهوه دوست دارم" });
+    // "قهو" is a prefix of "قهوه" and not the last query token.
+    const ranks = repo.searchKeyword("قهو صبح");
+    assert.ok(ranks && ranks.size === 1);
+  });
+
+  it("caps keyword hits at 200 rows", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    for (let i = 0; i < 250; i++) {
+      repo.create({ userId: "local", type: "semantic", content: `zebra sighting number ${i}` });
+    }
+    const ranks = repo.searchKeyword("zebra");
+    assert.ok(ranks);
+    assert.equal(ranks!.size, 200);
   });
 });
