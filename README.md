@@ -8,7 +8,7 @@
 
 > Chat history is a log. Synapse is a brain.
 
-Synapse is a **local-first personal memory operating system** that gives AI agents durable, typed long-term memory. It extracts semantic facts from episodic conversations, anchors single-current-value facts to entity keys so new values supersede old ones, detects and resolves conflicts, decays stale information, and retrieves with a hybrid scoring pipeline that attaches trust qualifiers and learns from agent feedback — all on local SQLite with full user control over export and purge. An always-on digest covers what retrieval can't: the facts an agent should just know at session start.
+Synapse is a **local-first personal memory operating system** that gives AI agents durable, typed long-term memory. It extracts semantic facts from episodic conversations, anchors single-current-value facts to entity keys so new values supersede old ones, detects and resolves conflicts, decays stale information, and retrieves with a hybrid scoring pipeline that attaches trust qualifiers and learns from agent feedback — all on local SQLite with full user control over export and purge. It refuses to store credentials, and an always-on digest covers what retrieval can't: the facts an agent should just know at session start.
 
 ## Architecture
 
@@ -32,7 +32,7 @@ flowchart TB
 
     subgraph Store["Store (better-sqlite3 · WAL)"]
         REPO["MemoryRepository<br/>CRUD · links · quarantine · audit · jobs"]
-        RET["RetrievalService<br/>vector + keyword + importance + recency − decay − conflict"]
+        RET["RetrievalService<br/>vector + BM25 keyword + importance + recency − decay − conflict"]
         JOBS["Jobs<br/>consolidate · conflict · decay · purge"]
     end
 
@@ -83,16 +83,21 @@ score = 0.40·vector + 0.20·keyword + 0.15·importance
 
 Weights defined in `DEFAULT_RANK_WEIGHTS` (`packages/core/src/scoring.ts`). Retrieval is 100% non-LLM; the LLM is used only in consolidation and conflict detection.
 
+The **keyword** component is real full-text search, not substring matching: an SQLite FTS5 index (`porter unicode61` tokenizer — English stemming, other scripts match exactly) scores hits with BM25, and every query token prefix-matches (`"roas"` finds "roast"). Candidacy is the union of FTS keyword hits and the vector top-K — memories matching neither signal are noise for that query and are never scored (always-know facts are the digest's job, below). If the FTS index is ever broken, retrieval degrades to legacy substring scoring instead of failing, and audits the fallback.
+
 Retrieval also closes the loop instead of being a one-way pipe:
 
 - **Trust qualifiers** — each result may carry a `qualifier` string ("stored 8 months ago — may be outdated; disputed by a conflicting memory; low confidence") so the consuming LLM can hedge instead of confidently asserting stale facts.
 - **Touch-on-retrieve** — returned memories get their `lastAccessedAt` bumped, so memories that keep proving relevant rank higher over time via the recency term.
+- **Abstention** — pass `minScore` and Synapse returns nothing rather than weakly-related noise; an empty result is a signal, not a failure.
+- **1-hop link expansion** — a hit on a memory pulls in its `part_of` / `related_to` neighbors at half score when there's room, so a hit on a chapter brings its book along.
+- **Semantic dedup at write time** — a new memory near-identical to an existing one is absorbed instead of stored twice, keeping retrieval results from filling with duplicates.
 
 ## Memory tools (MCP)
 
 | Tool | What it does |
 |------|--------------|
-| `memory_write` | Store a typed memory (episodic / semantic / procedural). Pass `entityKey` (e.g. `user.employer`) for single-current-value facts — a new value automatically supersedes the old one instead of coexisting with it. |
+| `memory_write` | Store a typed memory (episodic / semantic / procedural). Pass `entityKey` (e.g. `user.employer`) for single-current-value facts — a new value automatically supersedes the old one instead of coexisting with it. Content that looks like a credential is rejected (see [Secret detection](#secret-detection)). |
 | `memory_retrieve` | Hybrid-scored recall with trust qualifiers on each result. |
 | `memory_digest` | Always-on core memory: pinned + most important facts as one capped block. Call once at session start — the "agent should just know this" layer that pure retrieval misses. |
 | `memory_feedback` | Report a retrieved memory as `helpful`, `stale`, or `wrong`. Helpful raises confidence (and re-activates a disputed memory); stale/wrong lowers it and marks the memory disputed, hiding it from default retrieval. |
@@ -112,7 +117,7 @@ pnpm --filter @synapse/cli start remember semantic "User prefers TypeScript"
 pnpm --filter @synapse/cli start query "TypeScript preference"
 pnpm --filter @synapse/cli start export
 
-# Inspector
+# Inspector — browse/edit memories, link graph, analytics charts, audit trail (light/dark)
 open http://localhost:8787/inspector
 
 # North-star demo (requires API running)
@@ -178,6 +183,15 @@ const result = await executeMemoryTool(client, name, args);
 
 Every provider path shares the same guards: Zod validation on all inputs and agent-write importance capped at 0.8 (prompt-injection protection).
 
+## Secret detection
+
+Synapse refuses to store credentials. Every write path — MCP, HTTP API, CLI, the consolidation job — runs the content through a high-precision pattern gate **before** it touches disk: AWS access keys, `sk-…` API keys, GitHub/Slack/Google tokens, JWTs, PEM private keys, and `password:`/`token=`-style assignments.
+
+- Rejected writes never reach the database, the embedder, exports, or the digest.
+- The agent gets a readable reason ("Content appears to contain a credential (aws-access-key)… use a password manager") — the HTTP API returns `422`, the CLI exits non-zero.
+- The audit log records only the credential **kind**, never the matched text.
+- Deliberately storing secrets is a human's call, not an agent's: set `SYNAPSE_ALLOW_SECRETS=1` in the server environment to disable the gate entirely. There is no per-write override an agent could reach.
+
 ## Evals
 
 | Metric | Value |
@@ -186,6 +200,8 @@ Every provider path shares the same guards: Zod validation on all inputs and age
 | Precision@5 | 0.984 |
 | Stale-fact rate | 0.000 |
 | Pass rate | 0.969 |
+
+On the external **engram-v3** benchmark (LongMemEval-format, 50 multi-session QA questions, LLM-judged): **96.0%** (48/50) — ingest the haystack sessions, retrieve, answer from retrieved memories only.
 
 Lifecycle tests prove the full pipeline: episode → extraction → conflict detection (or `entityKey` supersession) → retrieval excludes the stale fact.
 
