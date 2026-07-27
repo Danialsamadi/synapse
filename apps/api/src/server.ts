@@ -277,7 +277,9 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
       if (e.action === "retrieve") {
         retrieves++;
         latencySum += Number(d.latencyMs ?? 0);
-        candidateSum += Number(d.candidateCount ?? 0);
+        // eligibleCount keeps the pre-FTS5 semantic (all filter-passing memories);
+        // candidateCount shrank to the B′ union — falling back keeps old rows comparable.
+        candidateSum += Number(d.eligibleCount ?? d.candidateCount ?? 0);
         const ids = Array.isArray(d.returnedIds) ? (d.returnedIds as string[]) : [];
         if (ids.length === 0) empty++;
         for (const id of ids) hits.set(id, (hits.get(id) ?? 0) + 1);

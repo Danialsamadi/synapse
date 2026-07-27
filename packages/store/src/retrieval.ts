@@ -187,6 +187,9 @@ export class RetrievalService {
       returnedIds: top.map((m) => m.id),
       candidateCount: candidates.length,
       eligibleCount: eligible.length,
+      // Tripwire for B′ union candidacy: how many eligible memories this query
+      // never scored. If real recall misses show up, this tells us first.
+      unionDropped: eligible.length - candidates.length,
       ...(keywordRanks === null ? { ftsFallback: true } : {}),
       latencyMs: Math.round(performance.now() - start),
       // Filters explain 0-candidate results; without them the log is unreadable.

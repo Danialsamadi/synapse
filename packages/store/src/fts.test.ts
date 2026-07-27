@@ -184,8 +184,8 @@ describe("searchKeyword", () => {
 });
 
 describe("buildMatchExpr", () => {
-  it("quotes tokens, ORs them, prefixes the last", () => {
-    assert.equal(buildMatchExpr("red running shoes"), '"red" OR "running" OR "shoes"*');
+  it("quotes tokens, ORs them, prefixes every token", () => {
+    assert.equal(buildMatchExpr("red running shoes"), '"red"* OR "running"* OR "shoes"*');
   });
   it("returns null when nothing tokenizes", () => {
     assert.equal(buildMatchExpr("!!!"), null);
@@ -301,5 +301,16 @@ describe("B′ union candidacy", () => {
       stats.candidateCount < detail.eligibleCount,
       "candidateCount must be strictly smaller than eligibleCount, proving a memory was dropped before scoring",
     );
+    assert.equal(detail.unionDropped, detail.eligibleCount - stats.candidateCount);
+    assert.ok(detail.unionDropped >= 1);
+  });
+
+  it("mid-query partial token matches via all-token prefixing", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    // "roas" is a prefix of "roast", and it is NOT the last query token —
+    // the old last-token-only prefixing would miss it.
+    repo.create({ userId: "local", type: "semantic", content: "prefers dark roast coffee" });
+    const ranks = repo.searchKeyword("roas beans");
+    assert.ok(ranks && ranks.size === 1);
   });
 });

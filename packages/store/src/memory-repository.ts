@@ -538,13 +538,12 @@ interface Row {
 
 /** Safe FTS5 MATCH expression: tokens double-quoted (operators neutralized),
  *  OR-joined (AND is too strict for natural-language queries; bm25 already
- *  ranks multi-term hits higher), last token prefix-matched. */
+ *  ranks multi-term hits higher), every token prefix-matched — recovers the
+ *  partial-credit the old substring scorer gave ("roas" matches "roast"). */
 export function buildMatchExpr(query: string): string | null {
   const tokens = query.split(/[^\p{L}\p{N}]+/u).filter((t) => t.length > 0);
   if (tokens.length === 0) return null;
-  const quoted = tokens.map((t) => `"${t}"`);
-  quoted[quoted.length - 1] += "*";
-  return quoted.join(" OR ");
+  return tokens.map((t) => `"${t}"*`).join(" OR ");
 }
 
 function contentHash(type: string, content: string): string {
