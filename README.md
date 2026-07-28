@@ -160,6 +160,8 @@ Then verify inside a new session with `/mcp` — synapse must show as connected.
 opencode mcp add synapse -- pnpm --dir /path/to/memory-os mcp
 ```
 
+*Forced recall (optional):* MCP tool calls are ultimately the model's choice. For deterministic recall, copy [`integrations/opencode/synapse-recall.ts`](integrations/opencode/synapse-recall.ts) to `~/.config/opencode/plugin/` and set `SYNAPSE_REPO` to your checkout (or edit the `REPO` constant). It hooks `chat.message`: when a prompt contains a trigger phrase ("use synapse", "deep memory", "recall", "what do you know about …"), it queries the DB directly and injects the results into the prompt before the model runs — no reliance on the model calling the tool.
+
 **Any other MCP client** — it's a standard stdio server: command `pnpm`, args `["--dir", "/path/to/memory-os", "mcp"]`.
 
 The server stores to `~/.synapse/synapse.db` by default; set `SYNAPSE_DB` in the server's `env` to share one database with the API/CLI/Inspector.
