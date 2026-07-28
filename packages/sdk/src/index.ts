@@ -24,6 +24,8 @@ export {
 export {
   toAnthropicTools,
   toOpenAiTools,
+  anthropicForceTool,
+  openAiForceTool,
   parseToolCall,
   type AnthropicTool,
   type OpenAiTool,

@@ -183,6 +183,8 @@ const { name, args } = parseToolCall(providerToolCall);
 const result = await executeMemoryTool(client, name, args);
 ```
 
+*Guaranteed recall:* to make the model query memory before answering, pass `tool_choice` on the **first** request of a turn — `anthropicForceTool()` (Messages API) or `openAiForceTool()` (Chat Completions) — then drop it on the follow-up call that carries the tool result, or the model is forced into an infinite tool loop. Note: Anthropic rejects forced tool use combined with extended thinking.
+
 Every provider path shares the same guards: Zod validation on all inputs and agent-write importance capped at 0.8 (prompt-injection protection).
 
 ## Secret detection

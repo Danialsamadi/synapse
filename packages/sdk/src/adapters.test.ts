@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { toAnthropicTools, toOpenAiTools, parseToolCall } from "./adapters.js";
+import { toAnthropicTools, toOpenAiTools, anthropicForceTool, openAiForceTool, parseToolCall } from "./adapters.js";
 import { MEMORY_TOOLS } from "./tools.js";
 
 describe("provider adapters", () => {
@@ -38,6 +38,14 @@ describe("provider adapters", () => {
     });
     assert.equal(call.name, "memory_write");
     assert.deepEqual(call.args, { type: "semantic", content: "x" });
+  });
+
+  it("builds tool_choice forcing objects for both providers", () => {
+    assert.deepEqual(anthropicForceTool(), { type: "tool", name: "memory_retrieve" });
+    assert.deepEqual(openAiForceTool("memory_write"), {
+      type: "function",
+      function: { name: "memory_write" },
+    });
   });
 
   it("throws on unrecognized shapes and bad JSON", () => {

@@ -28,6 +28,21 @@ export function toOpenAiTools(tools: ToolDefinition[] = MEMORY_TOOLS): OpenAiToo
   }));
 }
 
+/**
+ * Anthropic `tool_choice` that forces a memory tool call. Pass on the FIRST
+ * request of a turn only, then drop it on the follow-up call — forcing every
+ * call loops forever, and Anthropic forbids forced tool use with extended
+ * thinking.
+ */
+export function anthropicForceTool(name = "memory_retrieve") {
+  return { type: "tool", name } as const;
+}
+
+/** OpenAI `tool_choice` equivalent of {@link anthropicForceTool} — same first-call-only rule. */
+export function openAiForceTool(name = "memory_retrieve") {
+  return { type: "function", function: { name } } as const;
+}
+
 export interface NormalizedToolCall {
   id: string;
   name: string;
