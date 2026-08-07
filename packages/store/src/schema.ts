@@ -101,8 +101,15 @@ END;
 INSERT INTO memories_fts(memories_fts) VALUES('rebuild');
 `;
 
+// SQLite has no ADD COLUMN IF NOT EXISTS; replay-idempotency comes from
+// runMigrations tolerating "duplicate column name". Keep this migration
+// single-statement — a duplicate-column error skips the rest of its exec().
+export const MIGRATION_V4 = `
+ALTER TABLE memories ADD COLUMN last_reinforced_at TEXT;
+`;
+
 /** Ordered migrations; index+1 = schema version stored in PRAGMA user_version. */
-export const MIGRATIONS: readonly string[] = [MIGRATION_V1, MIGRATION_V2, MIGRATION_V3];
+export const MIGRATIONS: readonly string[] = [MIGRATION_V1, MIGRATION_V2, MIGRATION_V3, MIGRATION_V4];
 
 import type DatabaseType from "better-sqlite3";
 
@@ -120,7 +127,15 @@ export function runMigrations(db: DatabaseType.Database): void {
     );
   }
   db.transaction(() => {
-    for (let v = current; v < MIGRATIONS.length; v++) db.exec(MIGRATIONS[v]!);
+    for (let v = current; v < MIGRATIONS.length; v++) {
+      try {
+        db.exec(MIGRATIONS[v]!);
+      } catch (e) {
+        // Legacy adopt replays every migration; ALTER TABLE ADD COLUMN cannot
+        // be made idempotent in SQL, so the replay tolerates the column existing.
+        if (!/duplicate column name/i.test(String(e))) throw e;
+      }
+    }
     db.pragma(`user_version = ${MIGRATIONS.length}`);
   })();
 }

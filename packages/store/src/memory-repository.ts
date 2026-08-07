@@ -17,6 +17,16 @@ import {
 } from "@synapse/core";
 import { runMigrations } from "./schema.js";
 
+/** Spaced-reinforcement stability (spacing effect): a retrieval hit at least
+ *  REINFORCE_GATE_DAYS after the previous reinforcement multiplies the
+ *  memory's decay half-life by REINFORCE_GROWTH, capped at HALF_LIFE_CAP_DAYS
+ *  so nothing becomes accidentally immortal. */
+export const REINFORCE_GATE_DAYS = 1;
+export const REINFORCE_GROWTH = 1.5;
+/** "helpful" feedback: deliberate signal, stronger growth, no spacing gate. */
+export const FEEDBACK_REINFORCE_GROWTH = 2;
+export const HALF_LIFE_CAP_DAYS = 365;
+
 export interface MemoryRepositoryOptions {
   /** Path to sqlite file, or ":memory:" for tests. */
   path?: string;
@@ -64,6 +74,14 @@ export class MemoryRepository {
     const { entityKey, ...input } = CreateMemoryInputSchema.parse(raw);
     const now = new Date().toISOString();
     const type = input.type;
+    const sourceRefs =
+      input.sourceRefs ??
+      (type === "working"
+        ? []
+        : [{ kind: "manual" as const, id: "cli-or-api", observedAt: now }]);
+    // Provenance is trust: a fact the user stated (manual) starts more trusted
+    // than one the agent inferred (tool/message).
+    const defaultConfidence = sourceRefs.some((s) => s.kind === "manual") ? 0.9 : 0.7;
     const memory: Memory = {
       id: newMemoryId(),
       userId: input.userId,
@@ -74,22 +92,12 @@ export class MemoryRepository {
         ? { structured: input.structured }
         : {}),
       importance: input.importance ?? DEFAULT_IMPORTANCE[type],
-      confidence: input.confidence ?? 0.7,
+      confidence: input.confidence ?? defaultConfidence,
       decayHalfLifeDays:
         input.decayHalfLifeDays ?? DEFAULT_HALF_LIFE_DAYS[type],
       createdAt: now,
       updatedAt: now,
-      sourceRefs:
-        input.sourceRefs ??
-        (type === "working"
-          ? []
-          : [
-              {
-                kind: "manual",
-                id: "cli-or-api",
-                observedAt: now,
-              },
-            ]),
+      sourceRefs,
       links: [],
       tags: input.tags ?? [],
       retention: input.retention ?? { mode: "default" },
@@ -416,28 +424,74 @@ export class MemoryRepository {
     }
   }
 
-  touchAccessed(ids: string[]): void {
+  touchAccessed(ids: string[], now = new Date()): void {
     if (ids.length === 0) return;
-    const now = new Date().toISOString();
-    const stmt = this.db.prepare(`UPDATE memories SET last_accessed_at = ? WHERE id = ?`);
+    const iso = now.toISOString();
+    const touch = this.db.prepare(`UPDATE memories SET last_accessed_at = ? WHERE id = ?`);
+    // Spacing effect: a retrieval hit ≥ REINFORCE_GATE_DAYS after the previous
+    // reinforcement (or creation, for the first) grows the half-life — memories
+    // that keep proving useful earn durability, while ten hits in one chatty
+    // session count as one. Pinned skip it: decay ignores them, and an inflated
+    // half-life would outlive a later unpin.
+    const reinforce = this.db.prepare(
+      `UPDATE memories SET
+         decay_half_life_days = MIN(?, decay_half_life_days * ?),
+         last_reinforced_at = ?
+       WHERE id = ?
+         AND json_extract(retention_json, '$.mode') != 'pinned'
+         AND julianday(?) - julianday(COALESCE(last_reinforced_at, created_at)) >= ?`,
+    );
+    const reinforced: string[] = [];
     const tx = this.db.transaction((list: string[]) => {
-      for (const id of list) stmt.run(now, id);
+      for (const id of list) {
+        touch.run(iso, id);
+        const r = reinforce.run(HALF_LIFE_CAP_DAYS, REINFORCE_GROWTH, iso, id, iso, REINFORCE_GATE_DAYS);
+        if (r.changes > 0) reinforced.push(id);
+      }
     });
     tx(ids);
+    if (reinforced.length > 0) {
+      this.addAudit(
+        "reinforce",
+        JSON.stringify({ ids: reinforced, trigger: "retrieval", growth: REINFORCE_GROWTH }),
+      );
+    }
   }
 
-  /** Agent-reported verdict on a retrieved memory. helpful: +0.1 confidence, restores disputed → active. stale/wrong: -0.3 and disputed. */
+  /**
+   * Agent-reported verdict on a retrieved memory.
+   * helpful: +0.1 confidence, restores disputed → active.
+   * stale: was true but aged out → archived, confidence untouched.
+   * wrong: never true → disputed, -0.3 confidence.
+   */
   applyFeedback(id: string, verdict: "helpful" | "stale" | "wrong"): Memory | null {
     const m = this.get(id);
     if (!m) return null;
+    let reinforced = false;
+    if (verdict === "helpful") {
+      // Explicit "this was useful" is a stronger durability signal than a mere
+      // retrieval hit: larger growth, no spacing gate (feedback is rare and
+      // deliberate). Same cap and pinned exclusion as touchAccessed.
+      const r = this.db
+        .prepare(
+          `UPDATE memories SET
+             decay_half_life_days = MIN(?, decay_half_life_days * ?),
+             last_reinforced_at = ?
+           WHERE id = ? AND json_extract(retention_json, '$.mode') != 'pinned'`,
+        )
+        .run(HALF_LIFE_CAP_DAYS, FEEDBACK_REINFORCE_GROWTH, new Date().toISOString(), id);
+      reinforced = r.changes > 0;
+    }
     const next =
       verdict === "helpful"
         ? this.update(id, {
             confidence: Math.min(1, m.confidence + 0.1),
             ...(m.status === "disputed" ? { status: "active" as const } : {}),
           })
-        : this.update(id, { confidence: Math.max(0, m.confidence - 0.3), status: "disputed" });
-    this.addAudit("feedback", JSON.stringify({ id, verdict }));
+        : verdict === "stale"
+          ? this.update(id, { status: "archived" })
+          : this.update(id, { confidence: Math.max(0, m.confidence - 0.3), status: "disputed" });
+    this.addAudit("feedback", JSON.stringify({ id, verdict, ...(reinforced ? { reinforced: true, growth: FEEDBACK_REINFORCE_GROWTH } : {}) }));
     return next;
   }
 
@@ -527,6 +581,7 @@ interface Row {
   confidence: number;
   decay_half_life_days: number;
   last_accessed_at: string | null;
+  last_reinforced_at: string | null;
   created_at: string;
   updated_at: string;
   source_refs_json: string;
@@ -596,5 +651,6 @@ function fromRow(row: Row): Memory {
   };
   if (structured !== undefined) memory.structured = structured;
   if (row.last_accessed_at) memory.lastAccessedAt = row.last_accessed_at;
+  if (row.last_reinforced_at) memory.lastReinforcedAt = row.last_reinforced_at;
   return memory;
 }

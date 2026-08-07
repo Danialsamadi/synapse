@@ -56,6 +56,8 @@ export const MemorySchema = z.object({
   confidence: z.number().min(0).max(1),
   decayHalfLifeDays: z.number().positive(),
   lastAccessedAt: z.string().optional(),
+  /** Last spaced reinforcement (retrieval hit ≥ gate after the previous one). */
+  lastReinforcedAt: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   sourceRefs: z.array(SourceRefSchema),
@@ -111,6 +113,7 @@ export const ScoreBreakdownSchema = z.object({
   vector: z.number().optional(),
   keyword: z.number().optional(),
   importance: z.number().optional(),
+  confidence: z.number().optional(),
   recency: z.number().optional(),
   decay: z.number().optional(),
   conflict: z.number().optional(),

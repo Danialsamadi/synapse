@@ -76,9 +76,11 @@ scripts/
 
 Hybrid score per candidate memory:
 
-```
-score = 0.40·vector + 0.20·keyword + 0.15·importance
-      + 0.10·recency - 0.10·decay - 0.05·conflict
+```math
+\begin{aligned}
+\text{score} ={} & 0.40 \cdot \text{vector} + 0.20 \cdot \text{keyword} + 0.15 \cdot \text{importance} + 0.10 \cdot \text{confidence} \\
+& + 0.10 \cdot \text{recency} - 0.10 \cdot \text{decay} - 0.05 \cdot \text{conflict}
+\end{aligned}
 ```
 
 Weights defined in `DEFAULT_RANK_WEIGHTS` (`packages/core/src/scoring.ts`). Retrieval is 100% non-LLM; the LLM is used only in consolidation and conflict detection.

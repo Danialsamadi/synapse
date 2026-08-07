@@ -129,20 +129,123 @@ describe("feedback loop", () => {
     repo.close();
   });
 
-  it("helpful raises confidence; stale/wrong lower it and dispute the memory", () => {
+  it("spaced retrieval hits grow half-life; same-day hits and pinned do not; cap holds", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({
+      userId: "local",
+      type: "semantic",
+      content: "fact",
+      decayHalfLifeDays: 100,
+    });
+    const day = 24 * 60 * 60 * 1000;
+    const t0 = Date.now();
+
+    // Immediately after creation: touched but not reinforced (gate not met).
+    repo.touchAccessed([m.id], new Date(t0));
+    assert.equal(repo.get(m.id)!.decayHalfLifeDays, 100);
+    assert.equal(repo.get(m.id)!.lastReinforcedAt, undefined);
+
+    // Two days later: reinforced, half-life × 1.5.
+    repo.touchAccessed([m.id], new Date(t0 + 2 * day));
+    assert.equal(repo.get(m.id)!.decayHalfLifeDays, 150);
+    assert.ok(repo.get(m.id)!.lastReinforcedAt);
+
+    // An hour after that: within the gate, no further growth.
+    repo.touchAccessed([m.id], new Date(t0 + 2 * day + 60 * 60 * 1000));
+    assert.equal(repo.get(m.id)!.decayHalfLifeDays, 150);
+
+    // Two more days: grows again but capped at 365 (150 × 1.5 = 225; then 337.5; then cap).
+    repo.touchAccessed([m.id], new Date(t0 + 4 * day));
+    assert.equal(repo.get(m.id)!.decayHalfLifeDays, 225);
+    repo.touchAccessed([m.id], new Date(t0 + 6 * day));
+    assert.equal(repo.get(m.id)!.decayHalfLifeDays, 337.5);
+    repo.touchAccessed([m.id], new Date(t0 + 8 * day));
+    assert.equal(repo.get(m.id)!.decayHalfLifeDays, 365);
+
+    // Pinned memories are never reinforced.
+    const p = repo.create({
+      userId: "local",
+      type: "semantic",
+      content: "pinned fact",
+      decayHalfLifeDays: 100,
+      retention: { mode: "pinned" },
+    });
+    repo.touchAccessed([p.id], new Date(t0 + 2 * day));
+    assert.equal(repo.get(p.id)!.decayHalfLifeDays, 100);
+    assert.equal(repo.get(p.id)!.lastReinforcedAt, undefined);
+
+    // Reinforcements leave an audit trail; gated no-op touches do not.
+    const audits = repo.listAudit("reinforce");
+    assert.equal(audits.length, 4);
+    assert.deepEqual(JSON.parse(audits[0]!.detail).ids, [m.id]);
+    repo.close();
+  });
+
+  it("helpful feedback reinforces ungated (×2, capped); pinned and wrong/stale do not", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const m = repo.create({
+      userId: "local",
+      type: "semantic",
+      content: "fact",
+      decayHalfLifeDays: 100,
+    });
+    // No spacing gate: works immediately after creation, twice in a row.
+    assert.equal(repo.applyFeedback(m.id, "helpful")!.decayHalfLifeDays, 200);
+    assert.equal(repo.applyFeedback(m.id, "helpful")!.decayHalfLifeDays, 365);
+    assert.ok(repo.get(m.id)!.lastReinforcedAt);
+    const fb = repo.listAudit("feedback");
+    assert.equal(JSON.parse(fb[0]!.detail).reinforced, true);
+
+    const w = repo.create({ userId: "local", type: "semantic", content: "bad", decayHalfLifeDays: 100 });
+    repo.applyFeedback(w.id, "wrong");
+    assert.equal(repo.get(w.id)!.decayHalfLifeDays, 100);
+
+    const p = repo.create({
+      userId: "local",
+      type: "semantic",
+      content: "pinned",
+      decayHalfLifeDays: 100,
+      retention: { mode: "pinned" },
+    });
+    repo.applyFeedback(p.id, "helpful");
+    assert.equal(repo.get(p.id)!.decayHalfLifeDays, 100);
+    repo.close();
+  });
+
+  it("helpful raises confidence; stale archives; wrong disputes and lowers", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const a = repo.create({ userId: "local", type: "semantic", content: "a" });
     const b = repo.create({ userId: "local", type: "semantic", content: "b" });
+    const c = repo.create({ userId: "local", type: "semantic", content: "c" });
 
     const helped = repo.applyFeedback(a.id, "helpful")!;
-    assert.ok(Math.abs(helped.confidence - 0.8) < 1e-9);
+    assert.ok(Math.abs(helped.confidence - 1.0) < 1e-9);
     assert.equal(helped.status, "active");
 
+    // stale = was true, aged out: retired without a confidence penalty
     const staled = repo.applyFeedback(b.id, "stale")!;
-    assert.ok(Math.abs(staled.confidence - 0.4) < 1e-9);
-    assert.equal(staled.status, "disputed");
+    assert.ok(Math.abs(staled.confidence - b.confidence) < 1e-9);
+    assert.equal(staled.status, "archived");
+
+    const wronged = repo.applyFeedback(c.id, "wrong")!;
+    assert.ok(Math.abs(wronged.confidence - (c.confidence - 0.3)) < 1e-9);
+    assert.equal(wronged.status, "disputed");
 
     assert.equal(repo.applyFeedback("nope", "helpful"), null);
+    repo.close();
+  });
+
+  it("provenance sets default confidence: manual 0.9, tool 0.7", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const manual = repo.create({ userId: "local", type: "semantic", content: "user said" });
+    assert.equal(manual.confidence, 0.9);
+    const inferred = repo.create({
+      userId: "local",
+      type: "semantic",
+      content: "agent inferred",
+      sourceRefs: [{ kind: "tool", id: "mcp", observedAt: new Date().toISOString() }],
+    });
+    assert.equal(inferred.confidence, 0.7);
     repo.close();
   });
 
@@ -159,7 +262,7 @@ describe("feedback loop", () => {
   it("helpful restores a disputed memory to active", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const m = repo.create({ userId: "local", type: "semantic", content: "redeemed fact" });
-    repo.applyFeedback(m.id, "stale");
+    repo.applyFeedback(m.id, "wrong");
     assert.equal(repo.get(m.id)!.status, "disputed");
     const restored = repo.applyFeedback(m.id, "helpful")!;
     assert.equal(restored.status, "active");
