@@ -96,6 +96,8 @@ export type UpdateMemoryInput = z.infer<typeof UpdateMemoryInputSchema>;
 
 export const RetrieveRequestSchema = z.object({
   query: z.string().min(1),
+  /** Optional LLM rerank of the top hits; falls back to hybrid order on any failure. */
+  rerank: z.boolean().optional(),
   userId: z.string().min(1).optional().default("local"),
   types: z.array(MemoryTypeSchema).optional(),
   tags: z.array(z.string()).optional(),
@@ -118,6 +120,7 @@ export const ScoreBreakdownSchema = z.object({
   decay: z.number().optional(),
   conflict: z.number().optional(),
   link: z.number().optional(),
+  group: z.number().optional(),
 });
 export type ScoreBreakdown = z.infer<typeof ScoreBreakdownSchema>;
 

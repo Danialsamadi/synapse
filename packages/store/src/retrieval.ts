@@ -13,13 +13,18 @@ import {
 } from "@synapse/core";
 import { cosineSimilarity, type EmbeddingProvider } from "@synapse/embeddings";
 import type { MemoryRepository } from "./memory-repository.js";
+import type { LlmClient } from "./jobs/llm.js";
 import { parseTimeWindow } from "./time-window.js";
+
+/** Additive boost for members of the best-ranked tag group. */
+export const GROUP_BOOST = 0.05;
 
 export class RetrievalService {
   constructor(
     private readonly repo: MemoryRepository,
     private readonly embedder: EmbeddingProvider,
     private readonly weights: RankWeights = DEFAULT_RANK_WEIGHTS,
+    private readonly llm?: LlmClient,
   ) {}
 
   /** Always-on core memory: pinned first, then top-importance active non-working. */
@@ -155,8 +160,29 @@ export class RetrievalService {
         conflictPenalty: m.status === "disputed" ? 1 : 0,
         weights: this.weights,
       });
-      return { memory: m, score, breakdown };
+      return { memory: m, score, breakdown: breakdown as Record<string, number> };
     });
+
+    // Rank-based group boost (ordinal, MemPalace-closet style): the tag group
+    // whose best member scored highest is likely the query's topic — nudge its
+    // members so weak siblings of a strong hit outrank unrelated stragglers.
+    // Rank, not raw distances, so it's robust to score-scale drift. Inert when
+    // there's only one group (a uniform shift would just distort minScore).
+    const bestPerTag = new Map<string, number>();
+    for (const s of scored) {
+      for (const t of s.memory.tags) {
+        if ((bestPerTag.get(t) ?? -Infinity) < s.score) bestPerTag.set(t, s.score);
+      }
+    }
+    if (bestPerTag.size > 1) {
+      const topTag = [...bestPerTag.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+      for (const s of scored) {
+        if (s.memory.tags.includes(topTag)) {
+          s.score += GROUP_BOOST;
+          s.breakdown = { ...s.breakdown, group: GROUP_BOOST };
+        }
+      }
+    }
 
     scored.sort((a, b) => b.score - a.score);
     // Abstention: below minScore is noise, not evidence — return nothing rather than weakly-related memories.
@@ -186,6 +212,9 @@ export class RetrievalService {
       extras.sort((a, b) => b.score - a.score);
       top = [...top, ...extras.slice(0, req.limit - top.length)];
     }
+    if (req.rerank && this.llm && top.length > 1) {
+      top = await rerankWithLlm(this.llm, req.query, top);
+    }
     if (req.tokenBudget) top = packByTokenBudget(top, req.tokenBudget);
     this.repo.touchAccessed(top.map((m) => m.id));
     this.repo.addAudit("retrieve", JSON.stringify({
@@ -204,11 +233,34 @@ export class RetrievalService {
       ...(req.since ? { since: req.since } : {}),
       ...(req.until ? { until: req.until } : {}),
       ...(req.minScore !== undefined ? { minScore: req.minScore } : {}),
+      ...(req.rerank ? { rerank: true } : {}),
     }));
     return {
       memories: top,
       stats: { candidateCount: candidates.length, latencyMs: Math.round(performance.now() - start) },
     };
+  }
+}
+
+/** LLM rerank of the final hit list, 1-based index reply ("3,1,2"). Any parse
+ *  failure, partial ranking, or LLM error falls back to hybrid order — rerank
+ *  must never break or truncate retrieval. */
+async function rerankWithLlm(
+  llm: LlmClient,
+  query: string,
+  items: RetrievedMemory[],
+): Promise<RetrievedMemory[]> {
+  try {
+    const list = items.map((m, i) => `${i + 1}. ${m.content}`).join("\n");
+    const raw = await llm.complete(
+      "You rerank memory search results. Reply with only the item numbers, most relevant to the query first, comma-separated. Example: 3,1,2",
+      `Query: ${query}\n\nResults:\n${list}`,
+    );
+    const idx = [...new Set((raw.match(/\d+/g) ?? []).map(Number).filter((n) => n >= 1 && n <= items.length))];
+    if (idx.length !== items.length) return items;
+    return idx.map((n) => items[n - 1]!);
+  } catch {
+    return items;
   }
 }
 

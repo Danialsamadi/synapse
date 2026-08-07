@@ -83,7 +83,7 @@ Hybrid score per candidate memory:
 \end{aligned}
 ```
 
-Weights defined in `DEFAULT_RANK_WEIGHTS` (`packages/core/src/scoring.ts`). Retrieval is 100% non-LLM; the LLM is used only in consolidation and conflict detection.
+Weights defined in `DEFAULT_RANK_WEIGHTS` (`packages/core/src/scoring.ts`). Retrieval is 100% non-LLM by default; the LLM is used only in consolidation and conflict detection. An opt-in `rerank: true` flag lets an LLM reorder the final hit list (for benchmark headroom) — any parse failure or LLM error falls back silently to hybrid order, and the MCP path never uses it.
 
 The **keyword** component is real full-text search, not substring matching: an SQLite FTS5 index (`porter unicode61` tokenizer — English stemming, other scripts match exactly) scores hits with BM25, and every query token prefix-matches (`"roas"` finds "roast"). Candidacy is the union of FTS keyword hits and the vector top-K — memories matching neither signal are noise for that query and are never scored (always-know facts are the digest's job, below). If the FTS index is ever broken, retrieval degrades to legacy substring scoring instead of failing, and audits the fallback.
 
@@ -92,6 +92,7 @@ Retrieval also closes the loop instead of being a one-way pipe:
 - **Trust qualifiers** — each result may carry a `qualifier` string ("stored 8 months ago — may be outdated; disputed by a conflicting memory; low confidence") so the consuming LLM can hedge instead of confidently asserting stale facts.
 - **Touch-on-retrieve** — returned memories get their `lastAccessedAt` bumped, so memories that keep proving relevant rank higher over time via the recency term.
 - **Abstention** — pass `minScore` and Synapse returns nothing rather than weakly-related noise; an empty result is a signal, not a failure.
+- **Rank-based group boost** — the tag group whose best member scored highest gets a small additive boost for all its members (ordinal, not distance-based), so weak siblings of a strong hit outrank unrelated stragglers.
 - **1-hop link expansion** — a hit on a memory pulls in its `part_of` / `related_to` neighbors at half score when there's room, so a hit on a chapter brings its book along.
 - **Semantic dedup at write time** — a new memory near-identical to an existing one is absorbed instead of stored twice, keeping retrieval results from filling with duplicates.
 

@@ -267,3 +267,98 @@ describe("retrieve audit logging", () => {
     repo.close();
   });
 });
+
+describe("rank-based group boost", () => {
+  it("members of the best-ranked tag group get an ordinal boost; other groups do not", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const svc = new RetrievalService(repo, embedder);
+    const add = async (content: string, tags: string[]) => {
+      const m = repo.create({ userId: "local", type: "semantic", content, tags });
+      const [v] = await embedder.embed([content]);
+      if (v) repo.saveEmbedding(m.id, v, embedder.model);
+      return m;
+    };
+    // Strong hit establishes "cooking" as the best-ranked group; its weak
+    // sibling rides along. The "cars" memory is a different group.
+    const strong = await add("Roast chicken recipe with garlic and thyme", ["cooking"]);
+    const weakSibling = await add("Grocery list includes olive oil", ["cooking"]);
+    const other = await add("Car needs an oil change soon", ["cars"]);
+    const res = await svc.retrieve({ query: "roast chicken recipe garlic thyme", userId: "local", limit: 5 });
+    assert.equal(res.memories[0]?.id, strong.id);
+    const sib = res.memories.find((m) => m.id === weakSibling.id);
+    const car = res.memories.find((m) => m.id === other.id);
+    assert.ok(sib && (sib.scoreBreakdown?.group ?? 0) > 0, "top-group member should carry a group boost");
+    assert.equal(car?.scoreBreakdown?.group, undefined, "other-group member should not be boosted");
+    repo.close();
+  });
+
+  it("is inert when all candidates share one tag group (no uniform score shift)", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const svc = new RetrievalService(repo, embedder);
+    for (const content of ["Roast chicken with thyme", "Chicken stock from bones"]) {
+      const m = repo.create({ userId: "local", type: "semantic", content, tags: ["cooking"] });
+      const [v] = await embedder.embed([content]);
+      if (v) repo.saveEmbedding(m.id, v, embedder.model);
+    }
+    const res = await svc.retrieve({ query: "roast chicken", userId: "local", limit: 5 });
+    assert.ok(res.memories.length > 0);
+    for (const m of res.memories) assert.equal(m.scoreBreakdown?.group, undefined);
+    repo.close();
+  });
+});
+
+describe("LLM rerank flag", () => {
+  const seed = async (llm?: import("./jobs/llm.js").LlmClient) => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const svc = new RetrievalService(repo, embedder, undefined, llm);
+    const ids: string[] = [];
+    for (const content of ["Roast chicken with garlic and thyme", "Chicken soup with garlic broth"]) {
+      const m = repo.create({ userId: "local", type: "semantic", content });
+      const [v] = await embedder.embed([content]);
+      if (v) repo.saveEmbedding(m.id, v, embedder.model);
+      ids.push(m.id);
+    }
+    return { repo, svc, ids };
+  };
+
+  it("rerank: true reorders results according to the LLM's index list", async () => {
+    const { FakeLlm } = await import("./jobs/llm.js");
+    const { repo, svc } = await seed(new FakeLlm(["2, 1"]));
+    const base = await svc.retrieve({ query: "chicken garlic", userId: "local", limit: 5 });
+    assert.equal(base.memories.length, 2);
+    const reranked = await svc.retrieve({ query: "chicken garlic", userId: "local", limit: 5, rerank: true });
+    assert.deepEqual(
+      reranked.memories.map((m) => m.id),
+      [base.memories[1]!.id, base.memories[0]!.id],
+      "LLM said 2,1 — order should flip",
+    );
+    repo.close();
+  });
+
+  it("falls back to hybrid order on garbage LLM output", async () => {
+    const { FakeLlm } = await import("./jobs/llm.js");
+    const { repo, svc } = await seed(new FakeLlm(["I cannot rank these, sorry"]));
+    const base = await svc.retrieve({ query: "chicken garlic", userId: "local", limit: 5 });
+    const reranked = await svc.retrieve({ query: "chicken garlic", userId: "local", limit: 5, rerank: true });
+    assert.deepEqual(reranked.memories.map((m) => m.id), base.memories.map((m) => m.id));
+    repo.close();
+  });
+
+  it("falls back to hybrid order when the LLM throws", async () => {
+    const boom: import("./jobs/llm.js").LlmClient = { complete: async () => { throw new Error("down"); } };
+    const { repo, svc } = await seed(boom);
+    const res = await svc.retrieve({ query: "chicken garlic", userId: "local", limit: 5, rerank: true });
+    assert.equal(res.memories.length, 2);
+    repo.close();
+  });
+
+  it("rerank: true without an LLM client is a no-op", async () => {
+    const { repo, svc } = await seed(undefined);
+    const res = await svc.retrieve({ query: "chicken garlic", userId: "local", limit: 5, rerank: true });
+    assert.equal(res.memories.length, 2);
+    repo.close();
+  });
+});
