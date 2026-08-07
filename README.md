@@ -271,4 +271,4 @@ curl -s http://localhost:8787/v1/export | python3 -m json.tool
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GPL-3.0-only — see [LICENSE](LICENSE).
