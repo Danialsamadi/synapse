@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { MemoryTypeSchema, resolveDbPath } from "@synapse/core";
 import { MemoryRepository, RetrievalService, createEmbedder, reembedAll, writeMemory } from "@synapse/store";
+import { splitIntoMemories } from "./import.js";
 
 const dbPath = resolveDbPath;
 
@@ -9,6 +10,7 @@ function usage(): never {
 
 Usage:
   synapse remember <type> <content...>
+  synapse import <file.md> [--type <type>] [--tags <tag1,tag2>] [--date <iso>]
   synapse list [--type <type>]
   synapse get <id>
   synapse query <text...> [--type <type>] [--tags <tag1,tag2>]
@@ -77,6 +79,46 @@ async function main(): Promise<void> {
           null,
           2,
         ));
+        break;
+      }
+      case "import": {
+        // Seed memory from an existing doc (CLAUDE.md, notes): one memory per
+        // bullet/paragraph, through writeMemory so dedup + the secret gate apply.
+        let type: ReturnType<typeof MemoryTypeSchema.parse> = "semantic";
+        let tags: string[] | undefined;
+        let file: string | undefined;
+        let date: string | undefined;
+        for (let i = 0; i < rest.length; i++) {
+          if (rest[i] === "--type" && rest[i + 1]) type = MemoryTypeSchema.parse(rest[++i]);
+          else if (rest[i] === "--tags" && rest[i + 1]) tags = rest[++i]!.split(",");
+          else if (rest[i] === "--date" && rest[i + 1]) date = rest[++i];
+          else file ??= rest[i];
+        }
+        if (!file) usage();
+        if (date && Number.isNaN(Date.parse(date))) {
+          console.error(`--date "${date}" is not a parseable date`);
+          process.exit(1);
+        }
+        const { readFileSync } = await import("node:fs");
+        const chunks = splitIntoMemories(readFileSync(file, "utf-8"));
+        const embedder = createEmbedder();
+        // Event time: when the doc's facts were true (--date), else now.
+        const observedAt = date ?? new Date().toISOString();
+        let imported = 0, deduped = 0, rejected = 0;
+        for (const content of chunks) {
+          const outcome = await writeMemory(repo, embedder, {
+            userId: "local",
+            type,
+            content,
+            source: "cli",
+            ...(tags ? { tags } : {}),
+            sourceRefs: [{ kind: "file", id: file, observedAt }],
+          });
+          if ("rejected" in outcome) rejected++;
+          else if (outcome.deduped) deduped++;
+          else imported++;
+        }
+        console.log(JSON.stringify({ file, chunks: chunks.length, imported, deduped, rejected }, null, 2));
         break;
       }
       case "list": {

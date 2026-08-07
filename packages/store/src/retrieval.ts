@@ -1,6 +1,7 @@
 import {
   ageDays,
   decayPenalty,
+  eventTime,
   hybridScore,
   packByTokenBudget,
   recencyBoost,
@@ -103,8 +104,12 @@ export class RetrievalService {
     const eligible = [...active, ...disputed].filter((m) => {
       if (req.types && !req.types.includes(m.type)) return false;
       if (req.tags && !req.tags.some((t) => m.tags.includes(t))) return false;
-      if (req.since && m.createdAt < req.since) return false;
-      if (req.until && m.createdAt > req.until) return false;
+      // Temporal filters match when the fact was true (event time), not when
+      // it was written — a backdated import must not answer "this week".
+      // Numeric compare: observedAt is parseable but not guaranteed ISO-sortable.
+      const et = Date.parse(eventTime(m));
+      if (req.since && et < Date.parse(req.since)) return false;
+      if (req.until && et > Date.parse(req.until)) return false;
       return true;
     });
 
@@ -144,8 +149,9 @@ export class RetrievalService {
         keywordScore:
           keywordRanks === null ? keywordScore(req.query, m.content) : keywordRanks.get(m.id) ?? 0,
         importance: m.importance,
+        confidence: m.confidence,
         recency: recencyBoost(m.createdAt, m.lastAccessedAt, now),
-        decay: decayPenalty(ageDays(m.createdAt, now), m.decayHalfLifeDays, m.retention.mode),
+        decay: decayPenalty(ageDays(eventTime(m), now), m.decayHalfLifeDays, m.retention.mode),
         conflictPenalty: m.status === "disputed" ? 1 : 0,
         weights: this.weights,
       });

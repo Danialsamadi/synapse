@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { MemoryRepository, RetrievalService, createEmbedder, writeMemory } from "@synapse/store";
+import { MemoryRepository, RetrievalService, createEmbedder, runDecay, writeMemory } from "@synapse/store";
 import { TOOL_MAX_IMPORTANCE } from "@synapse/sdk";
 
 const json = (value: unknown) => ({
@@ -22,6 +22,14 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
   const retrieval = new RetrievalService(repo, embedder);
   const server = new McpServer({ name: "synapse", version: "0.1.0" });
 
+  // The MCP path is the flagship install and has no job runner: sweep once at
+  // startup so TTL expiry, decay archival, and the confidence floor actually
+  // run for npx-only users.
+  const swept = runDecay(repo);
+  if (swept.archived > 0 || swept.expired > 0) {
+    repo.addAudit("job", JSON.stringify({ kind: "decay", trigger: "mcp-startup", ...swept }));
+  }
+
   server.registerTool(
     "memory_write",
     {
@@ -33,6 +41,11 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
         importance: z.number().min(0).max(1).optional(),
         tags: z.array(z.string()).optional(),
         entityKey: z.string().min(1).optional(),
+        occurredAt: z
+          .string()
+          .datetime({ offset: true })
+          .optional()
+          .describe("ISO timestamp of when the fact was true or the event happened, if not now — e.g. the user recounts something from last month."),
         links: z
           .array(z.object({
             rel: z.enum(["supports", "contradicts", "related_to", "derived_from", "part_of"]),
@@ -42,7 +55,7 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
           .describe("Structural edges to existing memories, e.g. part_of to link a chapter to its book."),
       },
     },
-    async ({ type, content, importance, tags, entityKey, links }) => {
+    async ({ type, content, importance, tags, entityKey, occurredAt, links }) => {
       const outcome = await writeMemory(repo, embedder, {
         userId: "local",
         type,
@@ -51,7 +64,7 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
         ...(importance !== undefined ? { importance: Math.min(importance, TOOL_MAX_IMPORTANCE) } : {}),
         ...(tags ? { tags } : {}),
         ...(entityKey ? { entityKey } : {}),
-        sourceRefs: [{ kind: "tool", id: "mcp", observedAt: new Date().toISOString() }],
+        sourceRefs: [{ kind: "tool", id: "mcp", observedAt: occurredAt ?? new Date().toISOString() }],
       });
       if ("rejected" in outcome) {
         return json({
@@ -136,7 +149,7 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
     "memory_feedback",
     {
       description:
-        "Report whether a retrieved memory was accurate. Call with verdict 'stale' or 'wrong' when the user corrects something you recalled, and 'helpful' when a retrieved memory proved correct and useful.",
+        "Report whether a retrieved memory was accurate. Call with verdict 'stale' when the memory was true but is now outdated, 'wrong' when it was never accurate, and 'helpful' when a retrieved memory proved correct and useful.",
       inputSchema: {
         id: z.string().min(1),
         verdict: z.enum(["helpful", "stale", "wrong"]),

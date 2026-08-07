@@ -34,24 +34,32 @@ describe("behavioral: truth shifts over time", () => {
     repo.close();
   });
 
-  it("stale feedback disputes a memory and excludes it from default retrieval", async () => {
+  it("wrong feedback disputes a memory; stale archives it out of retrieval entirely", async () => {
     const { repo, svc, write } = await seeded();
-    const m = await write("User lives in Toronto");
-    repo.applyFeedback(m.id, "stale");
+    const w = await write("User lives in Toronto");
+    repo.applyFeedback(w.id, "wrong");
 
     const res = await svc.retrieve({ query: "where does the user live", userId: "local", limit: 5 });
-    assert.ok(!res.memories.some((r) => r.id === m.id), "disputed memory hidden by default");
+    assert.ok(!res.memories.some((r) => r.id === w.id), "disputed memory hidden by default");
 
     const withDisputed = await svc.retrieve({
       query: "where does the user live", userId: "local", limit: 5, includeDisputed: true,
     });
-    const hit = withDisputed.memories.find((r) => r.id === m.id);
+    const hit = withDisputed.memories.find((r) => r.id === w.id);
     assert.ok(hit, "disputed memory visible when explicitly requested");
     assert.match(hit!.qualifier ?? "", /disputed/, "qualifier warns the consumer");
+
+    // stale = retired, not contested: never resurfaces, even with includeDisputed
+    const s = await write("User lives in Oakville");
+    repo.applyFeedback(s.id, "stale");
+    const after = await svc.retrieve({
+      query: "where does the user live", userId: "local", limit: 5, includeDisputed: true,
+    });
+    assert.ok(!after.memories.some((r) => r.id === s.id), "archived memory never surfaces");
     repo.close();
   });
 
-  it("repeated helpful feedback raises confidence; repeated stale feedback floors it", async () => {
+  it("repeated helpful feedback raises confidence; repeated wrong feedback floors it", async () => {
     const { repo, write } = await seeded();
     const good = await write("User prefers TypeScript");
     repo.applyFeedback(good.id, "helpful");
@@ -59,7 +67,8 @@ describe("behavioral: truth shifts over time", () => {
     assert.ok(repo.get(good.id)!.confidence > 0.89);
 
     const bad = await write("User eats a keto diet");
-    repo.applyFeedback(bad.id, "stale");
+    repo.applyFeedback(bad.id, "wrong");
+    repo.applyFeedback(bad.id, "wrong");
     repo.applyFeedback(bad.id, "wrong");
     assert.ok(repo.get(bad.id)!.confidence <= 0.1);
     repo.close();

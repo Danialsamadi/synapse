@@ -42,6 +42,27 @@ describe("RetrievalService", () => {
     repo.close();
   });
 
+  it("since/until filter on event time, not write time", async () => {
+    const { repo, svc } = await seeded();
+    const embedder = new HashEmbeddingProvider();
+    // Written now, but the fact dates from a year ago (backdated import).
+    const lastYear = new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString();
+    const backdated = repo.create({
+      userId: "local", type: "episodic", content: "User visited Lisbon",
+      sourceRefs: [{ kind: "file", id: "journal.md", observedAt: lastYear }],
+    });
+    const [v] = await embedder.embed([backdated.content]);
+    if (v) repo.saveEmbedding(backdated.id, v, embedder.model);
+
+    const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+    const recent = await svc.retrieve({ query: "Lisbon visit", userId: "local", limit: 5, since: weekAgo });
+    assert.ok(!recent.memories.some((m) => m.id === backdated.id), "old event must not match a recent window");
+
+    const oldWindow = await svc.retrieve({ query: "Lisbon visit", userId: "local", limit: 5, until: weekAgo });
+    assert.ok(oldWindow.memories.some((m) => m.id === backdated.id), "old event matches an old window");
+    repo.close();
+  });
+
   it("respects token budget", async () => {
     const { repo, svc, add } = await seeded();
     await add("semantic", "A".repeat(400)); // ~100 tokens

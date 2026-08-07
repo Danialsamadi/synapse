@@ -31,4 +31,28 @@ describe("decay job", () => {
     assert.equal(r.expired, 1);
     repo.close();
   });
+
+  it("archives memories driven below the confidence floor, active or disputed", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const junk = repo.create({ userId: "local", type: "semantic", content: "hallucinated fact", confidence: 0.05 });
+    repo.applyFeedback(junk.id, "wrong"); // → disputed, confidence 0
+    const ok = repo.create({ userId: "local", type: "semantic", content: "solid fact" });
+    const r = runDecay(repo);
+    assert.equal(repo.get(junk.id)?.status, "archived");
+    assert.equal(repo.get(ok.id)?.status, "active");
+    assert.equal(r.archived, 1);
+    repo.close();
+  });
+
+  it("ages by event time, not write time: a backdated episode decays immediately", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const backdated = repo.create({
+      userId: "local", type: "episodic", content: "trip to Lisbon last year",
+      importance: 0.2, decayHalfLifeDays: 30,
+      sourceRefs: [{ kind: "note", id: "journal", observedAt: new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString() }],
+    });
+    runDecay(repo); // now, no time travel — write time is fresh, event time is old
+    assert.equal(repo.get(backdated.id)?.status, "archived");
+    repo.close();
+  });
 });

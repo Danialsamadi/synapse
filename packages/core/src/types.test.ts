@@ -5,7 +5,7 @@ import {
   MemoryStatusSchema,
   MemoryTypeSchema,
 } from "./types.js";
-import { decayPenalty, hybridScore, packByTokenBudget } from "./scoring.js";
+import { decayPenalty, eventTime, hybridScore, packByTokenBudget } from "./scoring.js";
 
 describe("MemoryTypeSchema", () => {
   it("accepts core types", () => {
@@ -62,6 +62,43 @@ describe("hybridScore", () => {
       conflictPenalty: 0,
     });
     assert.ok(high.score > low.score);
+  });
+
+  it("rewards confidence so feedback changes rank order", () => {
+    const base = {
+      vectorSim: 0.5,
+      keywordScore: 0,
+      importance: 0.5,
+      recency: 0.5,
+      decay: 0,
+      conflictPenalty: 0,
+    };
+    const trusted = hybridScore({ ...base, confidence: 0.9 });
+    const doubted = hybridScore({ ...base, confidence: 0.2 });
+    assert.ok(trusted.score > doubted.score);
+    assert.ok(trusted.breakdown.confidence > 0);
+  });
+});
+
+describe("eventTime", () => {
+  it("returns earliest parseable observedAt, else createdAt", () => {
+    const createdAt = "2026-07-30T00:00:00.000Z";
+    assert.equal(eventTime({ createdAt, sourceRefs: [] }), createdAt);
+    assert.equal(
+      eventTime({
+        createdAt,
+        sourceRefs: [
+          { kind: "note", id: "a", observedAt: "2026-06-01T00:00:00.000Z" },
+          { kind: "note", id: "b", observedAt: "2025-01-01T00:00:00.000Z" },
+          { kind: "note", id: "c", observedAt: "not a date" },
+        ],
+      }),
+      "2025-01-01T00:00:00.000Z",
+    );
+    assert.equal(
+      eventTime({ createdAt, sourceRefs: [{ kind: "note", id: "x", observedAt: "junk" }] }),
+      createdAt,
+    );
   });
 });
 

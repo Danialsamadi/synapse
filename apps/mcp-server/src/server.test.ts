@@ -62,7 +62,7 @@ describe("synapse MCP server", () => {
     repo.close();
   });
 
-  it("memory_feedback disputes a stale memory", async () => {
+  it("memory_feedback archives a stale memory and disputes a wrong one", async () => {
     const { repo, client } = await connected();
     const m = repo.create({ userId: "local", type: "semantic", content: "User works at Acme Corp" });
     const res = await client.callTool({
@@ -70,7 +70,27 @@ describe("synapse MCP server", () => {
       arguments: { id: m.id, verdict: "stale" },
     });
     const out = JSON.parse((res.content as Array<{ text: string }>)[0]!.text) as { status: string };
-    assert.equal(out.status, "disputed");
+    assert.equal(out.status, "archived");
+
+    const w = repo.create({ userId: "local", type: "semantic", content: "User is left-handed" });
+    const res2 = await client.callTool({
+      name: "memory_feedback",
+      arguments: { id: w.id, verdict: "wrong" },
+    });
+    const out2 = JSON.parse((res2.content as Array<{ text: string }>)[0]!.text) as { status: string };
+    assert.equal(out2.status, "disputed");
+    repo.close();
+  });
+
+  it("memory_write occurredAt becomes the sourceRef observedAt (event time)", async () => {
+    const { repo, client } = await connected();
+    const occurredAt = "2026-01-15T00:00:00.000Z";
+    const res = await client.callTool({
+      name: "memory_write",
+      arguments: { type: "episodic", content: "User ran a marathon in January", occurredAt },
+    });
+    const out = JSON.parse((res.content as Array<{ text: string }>)[0]!.text) as { id: string };
+    assert.equal(repo.get(out.id)!.sourceRefs[0]!.observedAt, occurredAt);
     repo.close();
   });
 
