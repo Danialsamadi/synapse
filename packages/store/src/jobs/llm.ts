@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { tmpdir } from "node:os";
 
 export interface LlmClient {
   complete(system: string, user: string): Promise<string>;
@@ -75,22 +76,28 @@ export class ClaudeCliLlm implements LlmClient {
 
   complete(system: string, user: string): Promise<string> {
     const [cmd, ...prefix] = this.config.cmd ?? ["claude"];
+    // Full --system-prompt override (not --append) + user prompt as positional
+    // argv + neutral cwd: the CLI is a coding agent, and its project context,
+    // hooks, and agent framing intermittently hijacked the session role when a
+    // memory looked like a task request ("what's the right approach?") — the
+    // model then answered about the repo instead of the question. Debugged on
+    // engram-v3 fact_001; see BENCHMARKS.md.
     const args = [
       ...prefix,
       "-p",
       "--model",
       this.config.model ?? "haiku",
-      "--append-system-prompt",
+      "--system-prompt",
       system,
+      user,
     ];
     return new Promise((resolve, reject) => {
-      const child = execFile(
+      execFile(
         cmd!,
         args,
-        { timeout: this.config.timeoutMs ?? 300_000, maxBuffer: 16 * 1024 * 1024 },
+        { cwd: tmpdir(), timeout: this.config.timeoutMs ?? 300_000, maxBuffer: 16 * 1024 * 1024 },
         (err, stdout) => (err ? reject(err) : resolve(stdout.trim())),
       );
-      child.stdin?.end(user);
     });
   }
 }

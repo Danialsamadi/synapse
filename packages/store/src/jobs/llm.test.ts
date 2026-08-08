@@ -12,24 +12,25 @@ describe("ClaudeCliLlm", () => {
   const stub = () => {
     const dir = mkdtempSync(join(tmpdir(), "claude-cli-llm-"));
     const path = join(dir, "stub.js");
-    writeFileSync(
-      path,
-      `const fs = require("node:fs");
-const stdin = fs.readFileSync(0, "utf8");
-console.log(JSON.stringify({ argv: process.argv.slice(2), stdin }));`,
-    );
+    writeFileSync(path, `console.log(JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd() }));`);
     return path;
   };
 
-  it("passes system prompt via --append-system-prompt, user prompt via stdin, returns stdout", async () => {
+  it("fully overrides the system prompt, passes user prompt as positional arg, runs outside any project dir", async () => {
     const llm = new ClaudeCliLlm({ model: "haiku", cmd: [process.execPath, stub()] });
     const out = JSON.parse(await llm.complete("SYS PROMPT", "USER PROMPT"));
-    assert.equal(out.stdin, "USER PROMPT");
+    assert.equal(out.argv[out.argv.length - 1], "USER PROMPT");
     assert.ok(out.argv.includes("-p"));
     const mi = out.argv.indexOf("--model");
     assert.equal(out.argv[mi + 1], "haiku");
-    const si = out.argv.indexOf("--append-system-prompt");
+    // Full --system-prompt override, NOT --append-system-prompt: the CLI's
+    // coding-agent framing (project context, hooks) intermittently hijacked
+    // the session role when memory content looked like a task request.
+    const si = out.argv.indexOf("--system-prompt");
     assert.equal(out.argv[si + 1], "SYS PROMPT");
+    assert.ok(!out.argv.includes("--append-system-prompt"));
+    // Neutral cwd: no repo, no git status, no CLAUDE.md leaking into answers.
+    assert.notEqual(out.cwd, process.cwd());
   });
 
   it("rejects when the binary exits non-zero", async () => {
