@@ -4,7 +4,7 @@
  * configured LLM, judge, and print per-ability accuracy.
  *
  * Usage: pnpm --filter @synapse/evals longmemeval [--limit N] [--variant oracle|s|engram]
- *        [--min-score 0.25] [--judge]
+ *        [--min-score 0.25] [--judge] [--rerank]
  * Env:   SYNAPSE_LLM_API_KEY (+ optional SYNAPSE_LLM_BASE_URL / SYNAPSE_LLM_MODEL),
  *        SYNAPSE_EMBED_PROVIDER (default local)
  */
@@ -49,10 +49,10 @@ async function loadDataset(variant: string): Promise<LmeQuestion[]> {
   return JSON.parse(readFileSync(file, "utf8"));
 }
 
-async function answerQuestion(q: LmeQuestion, minScore: number, dryRun: boolean): Promise<string> {
+async function answerQuestion(q: LmeQuestion, minScore: number, dryRun: boolean, rerank: boolean, top: number): Promise<string> {
   const repo = new MemoryRepository({ path: ":memory:" });
   const embedder = createEmbedder();
-  const retrieval = new RetrievalService(repo, embedder);
+  const retrieval = new RetrievalService(repo, embedder, undefined, rerank ? createLlm() : undefined);
   try {
     for (let s = 0; s < q.haystack_sessions.length; s++) {
       const date = q.haystack_dates[s] ?? "";
@@ -62,14 +62,18 @@ async function answerQuestion(q: LmeQuestion, minScore: number, dryRun: boolean)
           userId: "local",
           type: "episodic",
           content: `[${date}] ${turn.role}: ${turn.content}`,
+          // No session tags: measured 80% -> 76% with them — the group boost
+          // rewards same-session redundancy where these questions need
+          // cross-session diversity (knowledge-update fell 100 -> 60).
         });
       }
     }
     const { memories } = await retrieval.retrieve({
       query: q.question,
       userId: "local",
-      limit: 15,
+      limit: top,
       minScore,
+      ...(rerank ? { rerank: true } : {}),
     });
     if (dryRun) {
       return `[dry-run] retrieved ${memories.length} memories; top: ${memories[0]?.content.slice(0, 80) ?? "(none)"}`;
@@ -80,7 +84,11 @@ async function answerQuestion(q: LmeQuestion, minScore: number, dryRun: boolean)
       "You answer questions about a user based ONLY on retrieved conversation memories. " +
         "Each memory is prefixed with its date. Today's date for the question is " +
         `${q.question_date}. Be concise — answer in one short sentence. ` +
-        "If the memories do not contain the answer, reply exactly: I don't know.",
+        // Calibrated abstention: a strict "reply exactly I don't know" makes
+        // cautious models abstain on partial evidence and tanks the score;
+        // measured Sonnet 40% vs Haiku 74% on identical retrieval.
+        "Reasonable inference from the memories is fine. " +
+        "Only reply exactly: I don't know — if nothing relevant was retrieved.",
       `Memories:\n${context || "(none retrieved)"}\n\nQuestion: ${q.question}`,
     );
   } finally {
@@ -111,6 +119,9 @@ const limit = Number(arg("limit") ?? Infinity);
 const minScore = Number(arg("min-score") ?? 0.25);
 const runJudge = process.argv.includes("--judge");
 const dryRun = process.argv.includes("--dry-run");
+const rerank = process.argv.includes("--rerank");
+// Retrieval depth: measured +10pp overall going 15 → 30 (see BENCHMARKS.md).
+const top = Number(arg("top") ?? 30);
 process.env.SYNAPSE_EMBED_PROVIDER ??= "local";
 
 const questions = (await loadDataset(variant)).slice(0, limit);
@@ -127,7 +138,7 @@ for (let i = 0; i < questions.length; i++) {
   // A single API error (quota, rate limit, timeout) must not discard the whole
   // run: record it, keep going, and still write hypotheses + print the table.
   try {
-    const hypothesis = await answerQuestion(q, minScore, dryRun);
+    const hypothesis = await answerQuestion(q, minScore, dryRun, rerank, top);
     lines.push(JSON.stringify({ question_id: q.question_id, hypothesis }));
     let verdict = "";
     if (runJudge) {

@@ -1,6 +1,6 @@
 import { loadEmbeddingConfig, loadLlmConfig } from "@synapse/core";
 import { HashEmbeddingProvider, LocalEmbeddingProvider, OpenAiEmbeddingProvider, type EmbeddingProvider } from "@synapse/embeddings";
-import { FakeLlm, OpenAiCompatLlm, type LlmClient } from "./jobs/llm.js";
+import { ClaudeCliLlm, FakeLlm, OpenAiCompatLlm, type LlmClient } from "./jobs/llm.js";
 
 export function createEmbedder(): EmbeddingProvider {
   const cfg = loadEmbeddingConfig();
@@ -24,6 +24,10 @@ export function createEmbedder(): EmbeddingProvider {
 }
 
 export function createLlm(): LlmClient {
+  // No API key needed: shells out to the local `claude -p` CLI (Claude Code auth).
+  if (process.env.SYNAPSE_LLM_PROVIDER === "claude-cli") {
+    return new ClaudeCliLlm({ model: process.env.SYNAPSE_LLM_MODEL ?? "haiku" });
+  }
   const cfg = loadLlmConfig();
   return new OpenAiCompatLlm(cfg);
 }

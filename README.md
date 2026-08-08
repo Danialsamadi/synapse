@@ -208,7 +208,7 @@ Synapse refuses to store credentials. Every write path — MCP, HTTP API, CLI, t
 | Stale-fact rate | 0.000 |
 | Pass rate | 0.969 |
 
-On the external **engram-v3** benchmark (LongMemEval-format, 50 multi-session QA questions, LLM-judged): **96.0%** (48/50) — ingest the haystack sessions, retrieve, answer from retrieved memories only.
+On the external **engram-v3** benchmark (LongMemEval-format, 50 multi-session QA questions, LLM-judged): **96.0%** (48/50) — ingest the haystack sessions, retrieve, answer from retrieved memories only. Full results, metric caveats, and reproduction commands: [BENCHMARKS.md](BENCHMARKS.md).
 
 Lifecycle tests prove the full pipeline: episode → extraction → conflict detection (or `entityKey` supersession) → retrieval excludes the stale fact.
 
