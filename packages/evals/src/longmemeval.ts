@@ -104,8 +104,23 @@ async function answerQuestion(q: LmeQuestion, minScore: number, dryRun: boolean,
   }
 }
 
+// --judge-model splits the judge from the answerer (e.g. Sonnet judging Haiku
+// answers). createLlm() reads env at call time, so swap the model around it.
+function createJudgeLlm() {
+  const judgeModel = arg("judge-model");
+  if (!judgeModel) return createLlm();
+  const prev = process.env.SYNAPSE_LLM_MODEL;
+  process.env.SYNAPSE_LLM_MODEL = judgeModel;
+  try {
+    return createLlm();
+  } finally {
+    if (prev === undefined) delete process.env.SYNAPSE_LLM_MODEL;
+    else process.env.SYNAPSE_LLM_MODEL = prev;
+  }
+}
+
 async function judge(q: LmeQuestion, hypothesis: string): Promise<boolean> {
-  const llm = createLlm();
+  const llm = createJudgeLlm();
   if (q.question_type.includes("abs")) {
     // Abstention questions: correct = the system declines to answer.
     const verdict = await llm.complete(
