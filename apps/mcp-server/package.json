@@ -1,6 +1,6 @@
 {
   "name": "synapse-os",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Synapse \u2014 local-first long-term memory for AI agents, over MCP",
   "type": "module",
   "license": "GPL-3.0-only",
@@ -47,5 +47,9 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/Danialsamadi/synapse/issues"
+  },
+  "homepage": "https://github.com/Danialsamadi/synapse#readme"
 }

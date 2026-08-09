@@ -1,6 +1,8 @@
 import { defineConfig } from "tsup";
+import { version } from "./package.json";
 
 export default defineConfig({
+  env: { PKG_VERSION: version },
   entry: ["src/index.ts"],
   format: "esm",
   platform: "node",

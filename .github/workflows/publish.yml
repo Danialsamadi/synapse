@@ -21,8 +21,24 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm --filter synapse-mcp build
-      - run: npm publish --provenance --access public
+      - name: Verify tag matches package version
         working-directory: apps/mcp-server
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package version $PKG_VERSION" >&2
+            exit 1
+          fi
+      - run: pnpm --filter synapse-os build
+      - name: Publish (skip if version already on registry)
+        working-directory: apps/mcp-server
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          if npm view "synapse-os@$PKG_VERSION" version >/dev/null 2>&1; then
+            echo "synapse-os@$PKG_VERSION already published — skipping."
+          else
+            npm publish --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

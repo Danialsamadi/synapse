@@ -20,7 +20,8 @@ function humanizeWhen(iso: string, now = new Date()): string {
 export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
   const embedder = createEmbedder();
   const retrieval = new RetrievalService(repo, embedder);
-  const server = new McpServer({ name: "synapse", version: "0.1.0" });
+  // PKG_VERSION is injected by tsup at build time from package.json.
+  const server = new McpServer({ name: "synapse", version: process.env.PKG_VERSION ?? "0.0.0-dev" });
 
   // The MCP path is the flagship install and has no job runner: sweep once at
   // startup so TTL expiry, decay archival, and the confidence floor actually
