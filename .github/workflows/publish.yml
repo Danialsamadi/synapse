@@ -31,6 +31,9 @@ jobs:
             exit 1
           fi
       - run: pnpm --filter synapse-os build
+      # OIDC trusted publishing (configured on npmjs.com for this repo+workflow):
+      # no NPM_TOKEN, no OTP. Requires npm >= 11.5; the runner ships 10.x.
+      - run: npm install -g npm@latest
       - name: Publish (skip if version already on registry)
         working-directory: apps/mcp-server
         run: |
@@ -40,5 +43,3 @@ jobs:
           else
             npm publish --provenance --access public
           fi
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
