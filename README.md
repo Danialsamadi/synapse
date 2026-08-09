@@ -134,7 +134,7 @@ Synapse exposes `memory_write`, `memory_retrieve`, `memory_digest`, and `memory_
 **Claude Code:**
 
 ```bash
-claude mcp add --scope user synapse -- npx -y synapse-mcp
+claude mcp add --scope user synapse -- npx -y synapse-os
 
 # or from a source checkout:
 claude mcp add --scope user synapse -- pnpm --dir /path/to/synapse mcp

@@ -1,7 +1,7 @@
 {
-  "name": "synapse-mcp",
-  "version": "0.2.0",
-  "description": "Synapse — local-first long-term memory for AI agents, over MCP",
+  "name": "synapse-os",
+  "version": "0.3.0",
+  "description": "Synapse \u2014 local-first long-term memory for AI agents, over MCP",
   "type": "module",
   "license": "GPL-3.0-only",
   "repository": {
@@ -9,11 +9,19 @@
     "url": "git+https://github.com/Danialsamadi/synapse.git",
     "directory": "apps/mcp-server"
   },
-  "keywords": ["mcp", "memory", "ai-agents", "sqlite", "local-first"],
+  "keywords": [
+    "mcp",
+    "memory",
+    "ai-agents",
+    "sqlite",
+    "local-first"
+  ],
   "bin": {
-    "synapse-mcp": "dist/index.js"
+    "synapse-os": "dist/index.js"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=20"
   },
