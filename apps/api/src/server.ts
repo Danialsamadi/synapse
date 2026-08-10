@@ -207,6 +207,15 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
     return c.json({ ok: true }, 201);
   });
 
+  app.post("/v1/feedback", async (c) => {
+    const body = z
+      .object({ id: z.string().min(1), verdict: z.enum(["helpful", "stale", "wrong"]) })
+      .parse(await c.req.json());
+    const updated = repository.applyFeedback(body.id, body.verdict);
+    if (!updated) return c.json({ error: "not_found" }, 404);
+    return c.json(updated);
+  });
+
   app.get("/v1/about-me", (c) => {
     const userId = c.req.query("userId") ?? "local";
     const semantic = repository.list(userId, { status: "active", type: "semantic" });

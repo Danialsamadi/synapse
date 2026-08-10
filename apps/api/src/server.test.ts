@@ -210,3 +210,31 @@ describe("PATCH /v1/memories/:id secret rejection", () => {
     assert.equal(memory.content, "original content");
   });
 });
+
+describe("POST /v1/feedback", () => {
+  it("helpful raises confidence; wrong disputes; unknown id is 404", async () => {
+    const m = repo.create({ userId: "local", type: "semantic", content: "feedback target fact" });
+    const helpful = await fetch(`${baseUrl}/v1/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: m.id, verdict: "helpful" }),
+    });
+    assert.equal(helpful.status, 200);
+    const updated = await helpful.json() as { confidence: number };
+    assert.ok(updated.confidence > m.confidence);
+
+    const wrong = await fetch(`${baseUrl}/v1/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: m.id, verdict: "wrong" }),
+    });
+    assert.equal((await wrong.json() as { status: string }).status, "disputed");
+
+    const missing = await fetch(`${baseUrl}/v1/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "nope", verdict: "helpful" }),
+    });
+    assert.equal(missing.status, 404);
+  });
+});
