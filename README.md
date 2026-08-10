@@ -3,6 +3,7 @@
 # Synapse — Personal AI Memory OS
 
 [![CI](https://github.com/Danialsamadi/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/Danialsamadi/synapse/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/synapse-os)](https://www.npmjs.com/package/synapse-os)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
 
