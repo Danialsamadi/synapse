@@ -1,7 +1,7 @@
 {
   "name": "synapse-os",
-  "version": "0.3.1",
-  "description": "Synapse \u2014 local-first long-term memory for AI agents, over MCP",
+  "version": "0.3.2",
+  "description": "Synapse — local-first long-term memory for AI agents, over MCP",
   "type": "module",
   "license": "GPL-3.0-only",
   "repository": {
