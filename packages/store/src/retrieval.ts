@@ -98,14 +98,24 @@ export class RetrievalService {
     stats: { candidateCount: number; latencyMs: number };
   }> {
     const start = performance.now();
+    // One clock for the whole call: the query window, recency and decay must
+    // agree. req.now lets a caller ask a question as of a past date; an
+    // unparseable value falls back rather than throwing RangeError out of
+    // toISOString() — retrieve() is reachable from HTTP and MCP.
+    const parsedNow = req.now ? new Date(req.now) : new Date();
+    const now = Number.isNaN(parsedNow.getTime()) ? new Date() : parsedNow;
     // Explicit since/until win; otherwise mine the query for relative time
     // ("yesterday", "last week") so temporal questions filter by date.
     if (req.since === undefined && req.until === undefined) {
-      const window = parseTimeWindow(req.query);
-      req = { ...req, ...window };
+      req = { ...req, ...parseTimeWindow(req.query, now) };
     }
     const active = this.repo.list(req.userId, { status: "active" });
     const disputed = req.includeDisputed ? this.repo.list(req.userId, { status: "disputed" }) : [];
+    // No empty-pool fallback on purpose. An empty window used to mean "the clock
+    // was wrong" (measured: 7 LongMemEval questions resolved their window into
+    // the current year and retrieved nothing) — fixed above by anchoring to
+    // req.now. What remains is the honest case: nothing happened in the window
+    // the user asked about, and saying so is why abstention scores 7/7.
     const eligible = [...active, ...disputed].filter((m) => {
       if (req.types && !req.types.includes(m.type)) return false;
       if (req.tags && !req.tags.some((t) => m.tags.includes(t))) return false;
@@ -123,7 +133,7 @@ export class RetrievalService {
     // (thousands); the B′ union below saves scoring work, not scan work. Swap
     // the vector side to a sqlite-vec index if retrieval latency ever matters.
     const vectors = this.repo.getEmbeddings(eligible.map((m) => m.id));
-    const now = new Date();
+    // (clock hoisted above — recency and decay use the same `now` as the window)
     const sims = new Map<string, number>();
     for (const m of eligible) {
       const vec = vectors.get(m.id);

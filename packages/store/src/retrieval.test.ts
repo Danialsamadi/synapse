@@ -362,3 +362,62 @@ describe("LLM rerank flag", () => {
     repo.close();
   });
 });
+
+describe("RetrievalService question-time anchoring", () => {
+  // Measured on LongMemEval: 7 of 169 dev questions retrieved literally zero
+  // memories and abstained. Cause: retrieve() called parseTimeWindow(query)
+  // without a clock, so "10 days ago" on a 2023 question resolved to a window
+  // in the current year, while every memory's eventTime fell back to createdAt
+  // (also now). Both sides landed in the wrong year and the filter — which runs
+  // before scoring — emptied the pool.
+  async function dated() {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    const svc = new RetrievalService(repo, embedder);
+    const add = async (content: string, observedAt: string) => {
+      const m = repo.create({
+        userId: "local",
+        type: "episodic",
+        content,
+        sourceRefs: [{ kind: "manual", id: `s-${observedAt}`, observedAt }],
+      });
+      const [v] = await embedder.embed([content]);
+      if (v) repo.saveEmbedding(m.id, v, embedder.model);
+      return m;
+    };
+    return { repo, svc, add };
+  }
+
+  it("resolves a relative window against req.now, not wall-clock now", async () => {
+    const { repo, svc, add } = await dated();
+    const hit = await add("I picked up a smoker for the backyard", "2023-05-12");
+    await add("Booked a dentist appointment", "2023-01-04");
+    const res = await svc.retrieve({
+      query: "What kitchen appliance did I buy 10 days ago?",
+      userId: "local",
+      limit: 10,
+      now: "2023-05-22",
+    });
+    assert.ok(
+      res.memories.some((m) => m.id === hit.id),
+      "memory inside the question-relative window must survive the date filter",
+    );
+    repo.close();
+  });
+
+  it("still honours an explicit since/until over the query-derived window", async () => {
+    const { repo, svc, add } = await dated();
+    await add("Bought a smoker", "2023-05-12");
+    const keep = await add("Bought a blender", "2023-05-20");
+    const res = await svc.retrieve({
+      query: "What kitchen appliance did I buy 10 days ago?",
+      userId: "local",
+      limit: 10,
+      now: "2023-05-22",
+      since: "2023-05-19",
+    });
+    assert.ok(res.memories.some((m) => m.id === keep.id));
+    assert.ok(!res.memories.some((m) => m.content.includes("smoker")), "explicit since must win");
+    repo.close();
+  });
+});
