@@ -1,0 +1,196 @@
+{
+  "note": "Published LongMemEval numbers for competing memory systems, collected 2026-08-11. THE BAR for Synapse. Every entry is vendor-self-reported unless marked otherwise — there is no neutral LongMemEval leaderboard. `comparable: false` means the number exists but is NOT an apples-to-apples end-to-end QA accuracy on LongMemEval-S and must not be used as a target without saying why. Categories use LongMemEval's own names; `null` = the source does not publish that category.",
+  "categories": [
+    "single-session-user",
+    "single-session-assistant",
+    "single-session-preference",
+    "multi-session",
+    "temporal-reasoning",
+    "knowledge-update",
+    "abstention"
+  ],
+  "providers": [
+    {
+      "name": "Hindsight",
+      "vendor": "Vectorize",
+      "dataset": "LongMemEval-S (rag, oracle=false, 500q)",
+      "metric": "accuracy",
+      "comparable": true,
+      "overall": 0.946,
+      "byCategory": {
+        "single-session-user": 0.9688,
+        "single-session-assistant": 1.0,
+        "single-session-preference": 0.7667,
+        "multi-session": 0.9256,
+        "temporal-reasoning": 0.9764,
+        "knowledge-update": 1.0,
+        "abstention": 0.8
+      },
+      "models": "answerer gemini-3.1-pro-preview, judge gemini-2.5-flash-lite",
+      "caveat": "Per-category values are an aggregation of the published per-question run file (s.json.gz), not a vendor-published table. Weak judge relative to answerer.",
+      "sources": ["https://github.com/vectorize-io/agent-memory-benchmark"]
+    },
+    {
+      "name": "Mem0",
+      "vendor": "Mem0",
+      "dataset": "LongMemEval-S (longmemeval_s_cleaned, 500q, top-200 retrieval)",
+      "metric": "accuracy",
+      "comparable": true,
+      "overall": 0.944,
+      "byCategory": {
+        "single-session-user": 0.986,
+        "single-session-assistant": 0.982,
+        "single-session-preference": 0.967,
+        "multi-session": 0.88,
+        "temporal-reasoning": 0.97,
+        "knowledge-update": 0.936,
+        "abstention": null
+      },
+      "models": "harness defaults gpt-4o answerer + gpt-4o judge; a separate table uses GPT-5 for both",
+      "caveat": "Self-reported, managed-platform pipeline, top-200 retrieval depth.",
+      "sources": ["https://github.com/mem0ai/memory-benchmarks", "https://mem0.ai/research"]
+    },
+    {
+      "name": "ByteRover",
+      "vendor": "ByteRover",
+      "dataset": "LongMemEval-S (500q)",
+      "metric": "accuracy",
+      "comparable": true,
+      "overall": 0.928,
+      "byCategory": {
+        "single-session-user": 0.986,
+        "single-session-assistant": 0.982,
+        "single-session-preference": 0.967,
+        "multi-session": 0.842,
+        "temporal-reasoning": 0.917,
+        "knowledge-update": 0.987,
+        "abstention": null
+      },
+      "models": "Gemini 3.1 Pro answerer, Gemini 3 Flash curation + judge",
+      "caveat": "Self-reported (vendor blog + arXiv 2604.01599). Judge is the vendor's own curation model.",
+      "sources": ["https://www.byterover.dev/blog/benchmark_ai_agent_memory_real_production_byterover_top_market_accuracy_longmemeval"]
+    },
+    {
+      "name": "Honcho",
+      "vendor": "Plastic Labs",
+      "dataset": "LongMemEval-S (500q)",
+      "metric": "accuracy",
+      "comparable": true,
+      "overall": 0.904,
+      "byCategory": {
+        "single-session-user": 0.943,
+        "single-session-assistant": 0.964,
+        "single-session-preference": 0.9,
+        "multi-session": 0.85,
+        "temporal-reasoning": 0.887,
+        "knowledge-update": 0.949,
+        "abstention": null
+      },
+      "models": "answerer claude-haiku-4-5, judge GPT-4o, ingestion gemini-2.5-flash-lite",
+      "caveat": "Self-reported, but raw counts published and per-category totals match the official split exactly (70/56/30/133/133/78).",
+      "sources": ["https://plasticlabs.ai/blog/research/Benchmarking-Honcho"]
+    },
+    {
+      "name": "Supermemory",
+      "vendor": "Supermemory",
+      "dataset": "LongMemEval-S",
+      "metric": "recall@15",
+      "comparable": false,
+      "overall": 0.95,
+      "byCategory": {
+        "single-session-user": 0.97,
+        "single-session-assistant": 1.0,
+        "single-session-preference": 0.9,
+        "multi-session": 0.93,
+        "temporal-reasoning": 0.91,
+        "knowledge-update": 0.99,
+        "abstention": null
+      },
+      "models": "gpt-4o judge",
+      "caveat": "RETRIEVAL RECALL, not end-to-end QA accuracy — measures whether the evidence was retrieved, not whether the question was answered. Not a valid target for an accuracy number.",
+      "sources": ["https://supermemory.ai/research/longmembench/"]
+    },
+    {
+      "name": "RetainDB",
+      "vendor": "RetainDB",
+      "dataset": "LongMemEval oracle split",
+      "metric": "accuracy",
+      "comparable": false,
+      "overall": 0.79,
+      "byCategory": {
+        "single-session-user": 0.88,
+        "single-session-assistant": null,
+        "single-session-preference": 0.88,
+        "multi-session": 0.68,
+        "temporal-reasoning": 0.74,
+        "knowledge-update": 0.76,
+        "abstention": null
+      },
+      "models": "answerer gpt-5.4, judge gpt-5.4-mini",
+      "caveat": "ORACLE split — gold evidence sessions are supplied, the easiest setting. Not comparable to _S numbers.",
+      "sources": ["https://www.retaindb.com/benchmark"]
+    },
+    {
+      "name": "OpenViking",
+      "vendor": "volcengine / ByteDance",
+      "dataset": null,
+      "metric": null,
+      "comparable": false,
+      "overall": null,
+      "byCategory": {},
+      "caveat": "Publishes NO LongMemEval numbers. Its benchmarks are LoCoMo, which is a different dataset and must not be carried over. Unmeasurable on this benchmark.",
+      "sources": ["https://github.com/volcengine/OpenViking"]
+    },
+    {
+      "name": "Holographic",
+      "vendor": "Hermes Agent memory provider",
+      "dataset": null,
+      "metric": null,
+      "comparable": false,
+      "overall": null,
+      "byCategory": {},
+      "caveat": "Publishes NO benchmark data of any kind. Unmeasurable on this benchmark.",
+      "sources": ["https://get-hermes.ai/memory/"]
+    },
+    {
+      "name": "Zep",
+      "vendor": "Zep (arXiv 2501.13956)",
+      "dataset": "LongMemEval-S",
+      "metric": "accuracy",
+      "comparable": true,
+      "overall": 0.712,
+      "byCategory": {
+        "single-session-user": 0.929,
+        "single-session-assistant": 0.804,
+        "single-session-preference": 0.567,
+        "multi-session": 0.579,
+        "temporal-reasoning": 0.624,
+        "knowledge-update": 0.833,
+        "abstention": null
+      },
+      "models": "gpt-4o answerer, gpt-4o judge",
+      "caveat": "Peer-reviewable paper, kept as the prior bar for continuity.",
+      "sources": ["https://arxiv.org/abs/2501.13956"]
+    },
+    {
+      "name": "full-context gpt-4o",
+      "vendor": "LongMemEval paper baseline",
+      "dataset": "LongMemEval-S",
+      "metric": "accuracy",
+      "comparable": true,
+      "overall": 0.602,
+      "byCategory": {
+        "single-session-user": 0.814,
+        "single-session-assistant": 0.946,
+        "single-session-preference": 0.2,
+        "multi-session": 0.443,
+        "temporal-reasoning": 0.451,
+        "knowledge-update": 0.782,
+        "abstention": null
+      },
+      "models": "gpt-4o answerer, gpt-4o judge",
+      "caveat": "No-memory reference point: the whole haystack stuffed into context.",
+      "sources": ["https://arxiv.org/abs/2410.10813"]
+    }
+  ]
+}

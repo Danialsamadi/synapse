@@ -138,6 +138,61 @@ test-set-informed tuning and we label it as such, the same standard we
 apply to MemPalace's tuned 100%. The clean-room check is running the same
 harness on LongMemEval_s (500 unseen questions) — see Roadmap.
 
+### The judge was not an error bar — it was broken, and we measured how
+
+The section below (written earlier) treated judge disagreement as noise around
+a true score. That was too generous. On LongMemEval-S we calibrated the judges
+against human adjudication and one of them is simply unusable.
+
+**Method.** 74 items were adjudicated by hand from the question, the gold
+answer, and the model's answer *only* — no judge verdict visible, no retrieved
+memories, no question source. Natural negatives were too few to tell a strict
+judge from a lenient one, so 19 more were manufactured: known-correct answers
+with exactly one fact corrupted (`38`→`41`, `Nike`→`Adidas`, `Revolution Hall`
+→`Doug Fir`, an abstention turned into a confident fabrication, an event order
+reversed). Every item, its label, and the one label we later corrected are in
+`packages/evals/data/judge-calibration.json`.
+
+**Two numbers per judge, never one** — a judge that always answers yes wins on
+overall agreement:
+
+| judge | accepts human-correct | rejects human-wrong (natural) | rejects manufactured |
+|---|---|---|---|
+| **haiku** | **97.8%** (44/45) | 100% (8/8) | **100%** (19/19) |
+| opus | 95.6% (43/45) | 100% (8/8) | 100% (19/19) |
+| sonnet | **31.1%** (14/45) | 100% (8/8) | 94.7% (18/19) |
+
+Sonnet-as-judge rejects roughly two thirds of correct answers. It returns a
+bare `no` to *"You met Sophia at a coffee shop in the city"* against gold
+*"a coffee shop in the city"*, and to *"Revolution Hall"* against gold
+*"Revolution Hall"* — reproduced by hand across system-prompt variants, while
+haiku and opus accept both. Haiku's high recall is accuracy rather than
+leniency: it rejects **all 19** corrupted answers.
+
+The judge is therefore frozen at haiku in `scripts/bench-round.sh`, on this
+evidence and not on preference.
+
+**What that cost us.** The first two LongMemEval-S dev rounds used the sonnet
+judge and scored 48.5% and 31.4%. Re-judging the *identical answers* with the
+calibrated judge gives **76.3%**. No memory, retrieval setting, or prompt
+changed between them.
+
+**Integrity disclosure.** The labels are ours, not a third party's. One label
+(`195a1a1b`) was corrected after a judge disagreed with it: re-reading the
+untruncated answer showed it recommended phone apps against a rubric that
+excludes phone use. The correction was verified against the rubric text rather
+than deferred to the judge, and is recorded on the item.
+
+### A partial round is not a smaller round
+
+A 169-question round lost 143 questions to a transient CLI failure. The harness
+caught each error per question and continued, so the 26 survivors merged
+cleanly as **96.2% — above every published system**. Errors do not distribute
+evenly across categories, so the survivors were a biased sample, not a shorter
+benchmark. `scripts/bench-merge.mjs` now refuses to record any round that lost
+more than 2% of its questions, and `ClaudeCliLlm.complete` retries with
+backoff. The false round was deleted from the history rather than footnoted.
+
 ### The judge is the biggest error bar
 
 We re-judged the **identical 50 answers** from the 96.0% run with Sonnet
@@ -235,9 +290,16 @@ a local model to keep the whole benchmark on-device.
 
 ## Benchmark Integrity
 
-- **No tuning on test items.** No weight, threshold, or prompt in this repo
-  was adjusted by inspecting specific failed benchmark questions. The two
-  engram-v3 misses are unexamined beyond their category.
+- **Dev-informed, holdout-clean.** This no longer claims "no tuning on test
+  items". The LongMemEval-S **dev** split (169q) has been inspected question by
+  question, and the question-time anchoring fix was found by reading dev misses.
+  We label that honestly rather than deny it. What protects the claim is the
+  split, not our restraint: the **holdout** (331q) is measured once, at the end,
+  with the judge and config already frozen, and is never tuned against. The
+  distinction we hold to is mechanism versus fitting — `req.now` corrects a
+  clock that was wrong for every query in every deployment, and would be a bug
+  fix with no benchmark attached. A threshold moved until dev improved would
+  not be, and is not shipped that way.
 - **The retrieval path is LLM-free in every raw number.** Reranked figures
   are labelled as such and reported alongside — never instead of — the raw
   number, including when the rerank doesn't help (see the Haiku runs).
@@ -258,5 +320,9 @@ a local model to keep the whole benchmark on-device.
 | Human adjudication or clause-level scoring of the 14 disputed verdicts | ⏳ resolves which judge is right |
 | engram-v3 with consolidation enabled | ⏳ the remaining lever for recurring-pattern — the harness skips the consolidation job, so those questions never get their distilled semantic fact |
 | Sonnet answerer at top-30 | ⏳ best-known config from both measured levers combined |
-| LongMemEval_s (500q), raw retrieval | ⏳ harness ready (`--variant s`), not yet run at scale |
+| LongMemEval-S dev split (169q), calibrated haiku judge | ✅ **76.3%** — above Zep 71.2% and full-context gpt-4o 60.2%; below Mem0 94.4% |
+| LongMemEval-S question-time anchoring (`req.now`) | ✅ 0→4 of the 14 zero-retrieval questions recovered at identical settings; full-round number pending |
+| `parseTimeWindow` word numerals ("four weeks ago") | ⏳ matches nothing today; 2 of the 9 remaining abstentions. Ships alone — extending the parser was measured zeroing 2 single-session-user questions |
+| Retrieval depth top 30→50 | ⏳ capped at 50: `RetrieveRequestSchema.limit` is `.max(50)`, so a number measured at top=100 is not reproducible through the API or SDK |
+| LongMemEval-S holdout (331q) | ⏳ measured once, after the judge and config are frozen; never tuned against |
 | Retrieval recall R@5 (MemPalace-comparable metric) | ⏳ needs labelled-session scoring in the harness |

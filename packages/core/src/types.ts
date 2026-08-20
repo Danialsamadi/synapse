@@ -108,6 +108,14 @@ export const RetrieveRequestSchema = z.object({
   includeDisputed: z.boolean().optional(),
   since: z.string().optional(),
   until: z.string().optional(),
+  /**
+   * "Now" for relative time in the query ("10 days ago", "last week") and for
+   * recency/decay. Defaults to wall-clock. Set it when the question is being
+   * asked about a point in the past — replaying a transcript, backfilled
+   * imports, a benchmark — otherwise the window lands in the current year and
+   * the date filter eliminates every candidate.
+   */
+  now: z.string().min(1).optional(),
 });
 export type RetrieveRequest = z.infer<typeof RetrieveRequestSchema>;
 

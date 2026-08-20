@@ -1,0 +1,779 @@
+{
+ "note": "Adjudication set for choosing the LongMemEval judge. Labels are the authors own, not a third partys, produced by reading question+gold+hypothesis ONLY, with no judge verdict visible. Answers come from the dev split of the baseline run. Manufactured items (question_id suffix __neg) are known-correct answers with one key fact corrupted; they exist because the natural negatives were too few to separate a strict judge from a lenient one. One label (195a1a1b) was corrected after re-reading the untruncated answer, and the correction is recorded on the item.",
+ "method": {
+  "blind": true,
+  "adjudicator": "repo author",
+  "inputs": [
+   "question",
+   "gold answer or rubric",
+   "model hypothesis"
+  ],
+  "excluded": [
+   "judge verdicts",
+   "retrieved memories",
+   "question source"
+  ]
+ },
+ "items": [
+  {
+   "question_id": "88432d0a_abs",
+   "question_type": "abstention",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many times did I bake egg tarts in the past two weeks?",
+   "gold": "The information provided is not enough. You did not mention baking egg tarts.",
+   "hypothesis": "I don't know — the memories don't mention you baking egg tarts in the past two weeks."
+  },
+  {
+   "question_id": "f685340e",
+   "question_type": "knowledge-update",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How often do I play tennis with my friends at the local park previously? How often do I play now?",
+   "gold": "Previously, you play tennis with your friends at the local park every week (on Sunday). Currently, you play tennis every other week (on Sunday).",
+   "hypothesis": "Based on the conversation memories:\n\n**Previously (March 2023):** You mentioned \"my own weekly tennis sessions with friends\" — so you were playing weekly (once a week).\n\n**Now (July 2023):** You stated \"like we do every other week\" — so you're now playing every other week (biweekly).\n\nThis represents a reduction in frequency, from weekly sessions to every other week."
+  },
+  {
+   "question_id": "c2ac3c61",
+   "question_type": "multi-session",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many online courses have I completed in total?",
+   "gold": 5,
+   "hypothesis": "Based on the conversation memories, you have completed a total of **5 online courses**:\n\n- **2 courses on edX** (mentioned on 2023/05/30)\n- **3 courses on Coursera** (mentioned on 2023/05/23)"
+  },
+  {
+   "question_id": "89527b6b",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I'm going back to our previous conversation about the children's book on dinosaurs. Can you remind me what color was the scaly body of the Plesiosaur in the image?",
+   "gold": "The Plesiosaur had a blue scaly body.",
+   "hypothesis": "According to the children's book about dinosaurs from your previous conversation, the Plesiosaur's scaly body was **blue**."
+  },
+  {
+   "question_id": "54026fce",
+   "question_type": "single-session-preference",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I've been thinking about ways to stay connected with my colleagues. Any suggestions?",
+   "gold": "The user would prefer responses that acknowledge their desire for social interaction and collaboration while working remotely, utilizing their previous experiences with company initiatives and team collaborations. They might prefer suggestions of virtual team-building activities, regular check-ins, or joining interest-based groups within the company. The user may not prefer generic suggestions that do not take into account their specific work situation or previous attempts at staying connected with colleagues.",
+   "hypothesis": "Based on your previous conversations, you've already explored several effective ways to stay connected with your colleagues while working remotely:\n\n**Core suggestions:**\n- **Virtual Coffee Breaks** — Regular informal video calls for casual chats, just like watercooler conversations\n- **Online Team Activities** — Virtual games, trivia, or escape rooms\n- **Collaborative Projects** — Cross-departmental work to increase interactions\n- **Social Channels** — Informal chat groups on Slack or Teams for non-work conversations\n- **Recognition and Celebrations** — Virtual parties or shout-outs for milestones and birthdays\n- **Interest-Based Groups** — Book clubs or fitness challenges around shared hobbies\n\n**For successfully implementing virtual coffee breaks**, your previous notes included:\n- Establish ground rules: no work talk, keep it light and casual, respect everyone's time, be present, use video\n- Choose a convenient time that works for most team members\n- Keep participation optional and start small\n- Lead by example and actively participate\n- Gather regular feedback and adjust as needed\n\nYou were particularly enthusiastic about virtual coffee breaks as a solution to recreate those informal watercooler moments you've been missing."
+  },
+  {
+   "question_id": "118b2229",
+   "question_type": "single-session-user",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How long is my daily commute to work?",
+   "gold": "45 minutes each way",
+   "hypothesis": "Your daily commute is 45 minutes each way."
+  },
+  {
+   "question_id": "b46e15ee",
+   "question_type": "temporal-reasoning",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "What charity event did I participate in a month ago?",
+   "gold": "the 'Walk for Hunger' charity event",
+   "hypothesis": "Based on the memories, approximately a month ago from today (2023/04/18), you participated in the **\"Walk for Hunger\" charity event** on March 19th, 2023, where you walked 5 kilometers to raise money for the local food bank with your colleagues from work."
+  },
+  {
+   "question_id": "982b5123_abs",
+   "question_type": "abstention",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "When did I book the Airbnb in Sacramento?",
+   "gold": "The information provided is not enough. You only mentioned booking Airbnb in San Francisco.",
+   "hypothesis": "I don't know — the memories don't mention a Sacramento Airbnb booking."
+  },
+  {
+   "question_id": "dfde3500",
+   "question_type": "knowledge-update",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "What day of the week did I meet with my previous language exchange tutor Juan?",
+   "gold": "Wednesday",
+   "hypothesis": "Based on your conversation memories, you met with your language exchange tutor Juan every **Wednesday evening**. You had your class at a local language school where he helped you with Spanish pronunciation and grammar while you assisted him with his English vocabulary."
+  },
+  {
+   "question_id": "73d42213",
+   "question_type": "multi-session",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "What time did I reach the clinic on Monday?",
+   "gold": "9:00 AM",
+   "hypothesis": "Based on the memories provided: The user left home at 7 AM on Monday and mentioned that the trip to the clinic took 2 hours, so they reached the clinic at approximately 9 AM. They subsequently got back to the office around 1:00 PM after taking a half-day off for the appointment."
+  },
+  {
+   "question_id": "0e5e2d1a",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I wanted to follow up on our previous conversation about binaural beats for anxiety and depression. Can you remind me how many subjects were in the study published in the journal Music and Medicine that found significant reductions in symptoms of depression, anxiety, and stress?",
+   "gold": "38 subjects",
+   "hypothesis": "Based on the conversation memories, the study published in the journal Music and Medicine involved **38 subjects** who listened to binaural beats for 30 minutes daily for three weeks. The study found significant reductions in symptoms of depression, anxiety, and stress."
+  },
+  {
+   "question_id": "3d86fd0a",
+   "question_type": "single-session-user",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Where did I meet Sophia?",
+   "gold": "a coffee shop in the city",
+   "hypothesis": "You met Sophia at a coffee shop in the city."
+  },
+  {
+   "question_id": "gpt4_e414231e",
+   "question_type": "temporal-reasoning",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many days passed between the day I fixed my mountain bike and the day I decided to upgrade my road bike's pedals?",
+   "gold": "4 days. 5 days (including the last day) is also acceptable.",
+   "hypothesis": "Based on the memories provided:\n\n- **Mountain bike fixed**: March 15, 2023 (Wednesday)\n- **Decided to upgrade road bike pedals**: March 19, 2023 (Sunday)\n\n**4 days** passed between the day you fixed your mountain bike and the day you decided to upgrade your road bike's pedals."
+  },
+  {
+   "question_id": "gpt4_c27434e8_abs",
+   "question_type": "abstention",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Which project did I start first, the Ferrari model or the Porsche 991 Turbo S model?",
+   "gold": "The information provided is not enough. You did not mention starting the Porsche 991 Turbo S model.",
+   "hypothesis": "I don't know — the memories don't mention a Porsche 991 Turbo S model. Based on the available conversation history, you've been working on a Ferrari 288 GTO (started about three weeks ago) and a 1/48 scale Japanese Zero fighter plane (started about a month ago), but there's no record of a Porsche project."
+  },
+  {
+   "question_id": "6aeb4375",
+   "question_type": "knowledge-update",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many Korean restaurants have I tried in my city?",
+   "gold": "four",
+   "hypothesis": "Based on the memories, you've tried **four different Korean restaurants** in your city. In a more recent memory from September 30, 2023, you mentioned \"I've tried four different ones so far.\" An earlier memory from August 11, 2023 referenced three restaurants where you'd tried bibimbap, kimchi stew, and Japchae."
+  },
+  {
+   "question_id": "099778bb",
+   "question_type": "multi-session",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "What percentage of leadership positions do women hold in the my company?",
+   "gold": "20%",
+   "hypothesis": "Based on the conversation memories, women hold **20% of the leadership positions** in your company.\n\nYou mentioned that women occupy 20 leadership positions out of a total of 100 leadership positions across the company."
+  },
+  {
+   "question_id": "d596882b",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I'm planning another trip to New York City and I was wondering if you could remind me of that vegan eatery you recommended last time, the one with multiple locations throughout the city?",
+   "gold": "By Chloe",
+   "hypothesis": "Based on our previous conversation, I recommended **By Chloe** — the popular plant-based eatery with multiple locations throughout New York City. They offer vegan burgers, salads, pastas, and baked goods. It's a great spot for plant-based dining when you're back in the city!"
+  },
+  {
+   "question_id": "ad7109d1",
+   "question_type": "single-session-user",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "What speed is my new internet plan?",
+   "gold": "500 Mbps",
+   "hypothesis": "Your new internet plan speed is **500 Mbps**. You upgraded to it about three weeks before May 24, 2023, and you mentioned it has made a huge difference, especially when streaming movies on Netflix."
+  },
+  {
+   "question_id": "gpt4_1a1dc16d",
+   "question_type": "temporal-reasoning",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Which event happened first, the meeting with Rachel or the pride parade?",
+   "gold": "The meeting with Rachel",
+   "hypothesis": "Based on the memories provided, the meeting with Rachel happened first. The user had a meeting with their mentor Rachel on April 10th, and the pride parade occurred on May 1st."
+  },
+  {
+   "question_id": "gpt4_fe651585_abs",
+   "question_type": "abstention",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Who became a parent first, Tom or Alex?",
+   "gold": "The information provided is not enough. You mentioned Alex becoming a parent in January, but you didn't mention anything about Tom.",
+   "hypothesis": "I don't know\n\nThe memories mention your cousin Alex adopting a baby girl from China in January, but they don't contain any information about Tom or when Tom became a parent."
+  },
+  {
+   "question_id": "06db6396",
+   "question_type": "knowledge-update",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many projects have I completed since starting painting classes?",
+   "gold": "5",
+   "hypothesis": "Based on your conversation memories, you've completed **5 projects** since starting painting classes. You mentioned finishing your 5th project on October 9, 2023, and expressed feeling accomplished by that milestone."
+  },
+  {
+   "question_id": "e831120c",
+   "question_type": "multi-session",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many weeks did it take me to watch all the Marvel Cinematic Universe movies and the main Star Wars films?",
+   "gold": "3.5 weeks",
+   "hypothesis": "Based on your memories:\n\n- **Marvel Cinematic Universe** (22 movies): 2 weeks\n- **Star Wars main films**: 1 week and a half (1.5 weeks)\n\nIf you're asking about the combined total time for both viewing marathons, that would be **3.5 weeks**."
+  },
+  {
+   "question_id": "6ade9755",
+   "question_type": "single-session-user",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Where do I take yoga classes?",
+   "gold": "Serenity Yoga",
+   "hypothesis": "You take yoga classes at Serenity Yoga studio. On days when you can't make it to the studio, you practice at home using the Down Dog app. You also have a Sunday morning yoga routine with your best friend Sarah, which includes a yoga class followed by brunch."
+  },
+  {
+   "question_id": "gpt4_7bc6cf22",
+   "question_type": "temporal-reasoning",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many days ago did I read the March 15th issue of The New Yorker?",
+   "gold": "12 days ago. 13 days (including the last day) is also acceptable.",
+   "hypothesis": "Based on the memories, you read the March 15th issue of The New Yorker on March 20, 2023. Since today's date is April 1, 2023, you read it **12 days ago**."
+  },
+  {
+   "question_id": "gpt4_93159ced_abs",
+   "question_type": "abstention",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How long have I been working before I started my current job at Google?",
+   "gold": "The information provided is not enough. From the information provided, You haven't started working at Google yet.",
+   "hypothesis": "I don't know — the memories indicate you've been working at NovaTech for about 4 years and 3 months, but they don't mention Google as your current employer or provide details about your total work experience before joining your current position."
+  },
+  {
+   "question_id": "69fee5aa",
+   "question_type": "knowledge-update",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many pre-1920 American coins do I have in my collection?",
+   "gold": "38",
+   "hypothesis": "You have a total of 37 pre-1920 American coins in your collection. You mentioned this when you were discussing organizing them by denomination and mint mark for display."
+  },
+  {
+   "question_id": "0a995998",
+   "question_type": "multi-session",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many items of clothing do I need to pick up or return from a store?",
+   "gold": 3,
+   "hypothesis": "Based on the conversation memories, you have **2 items** to pick up:\n\n1. **New boots from Zara** - You exchanged the original pair (which were too small) on February 5th for a larger size, and you still need to pick up the new pair.\n\n2. **Navy blue blazer from dry cleaning** - You need to pick up the dry cleaning for the blazer you wore to a meeting a few weeks ago."
+  },
+  {
+   "question_id": "e48988bc",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I was looking back at our previous conversation about environmentally responsible supply chain practices, and I was wondering if you could remind me of the company you mentioned that's doing a great job with sustainability?",
+   "gold": "Patagonia",
+   "hypothesis": "Based on the conversation memories, the company mentioned was **Patagonia**. \n\nThe discussion highlighted how Patagonia has implemented environmentally responsible practices throughout its supply chain, including:\n\n- **Sustainable sourcing**: Using organic cotton, recycled polyester, and other sustainable materials\n- **Green transportation**: Encouraging suppliers to use efficient methods like shipping by sea instead of air\n- **Packaging optimization**: Using recycled and recyclable materials in packaging\n- **Waste reduction**: Operating a take-back program where customers can return old clothes for recycling or repair\n- **Compliance with environmental regulations**: Closely monitoring supply chain compliance and investing in third-party certifications\n\nPatagonia was highlighted as an example of a company receiving recognition and awards for its sustainability efforts in its supply chain."
+  },
+  {
+   "question_id": "06878be2",
+   "question_type": "single-session-preference",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Can you suggest some accessories that would complement my current photography setup?",
+   "gold": "The user would prefer suggestions of Sony-compatible accessories or high-quality photography gear that can enhance their photography experience. They may not prefer suggestions of other brands' equipment or low-quality gear.",
+   "hypothesis": "Based on your memories, you have a **Sony A7R IV camera** and you've chosen the **Godox V1 flash**. You've also been exploring options for camera bags and tripods. Here are some accessories that would complement your current setup:\n\n**Lenses:**\n- Sony native lenses (Sony G-Master series, Zeiss lenses)\n- Third-party options like Tamron or Sigma lenses designed for Sony E-mount\n\n**Filters:**\n- ND (neutral density) filters for controlling exposure in bright conditions\n- Polarizing filters to reduce reflections and enhance colors\n- UV or protective filters to safeguard your lens\n\n**Lighting Accessories:**\n- Diffusers and softboxes for your Godox V1 to soften harsh light\n- Reflectors (gold, silver, white) to bounce and redirect light\n- Light stands and umbrellas\n\n**Camera Support:**\n- A quality tripod (like the Gitzo GT3543LS you were considering) for stability\n- A ball head or gimbal head to mount your camera on the tripod\n- A remote shutter release or intervalometer for hands-free shooting\n\n**Power & Storage:**\n- External battery packs to charge your A7R IV and other devices on the go\n- Extra batteries and memory cards (the A7R IV shoots high-resolution images, so fast, large-capacity cards are helpful)\n- A portable charger for your flash\n\n**Protection & Transport:**\n- A durable camera bag designed for Sony cameras (which you were researching)\n- A weather-sealed camera bag for outdoor/adventure photography\n- Lens cleaning kit and protective filters\n\nThese accessories would enhance your ability to capture professional-quality photos across various shooting conditions."
+  },
+  {
+   "question_id": "c14c00dd",
+   "question_type": "single-session-user",
+   "human_correct": true,
+   "borderline": true,
+   "manufactured": false,
+   "question": "What brand of shampoo do I currently use?",
+   "gold": "Trader Joe's",
+   "hypothesis": "Based on the conversation memories, you're currently using a lavender scented shampoo that you picked up at Trader Joe's. The specific brand name isn't mentioned in the memories, only that it's lavender scented and you've been using it for about a week (as of May 22, 2023), and it's been doing wonders for your hair."
+  },
+  {
+   "question_id": "gpt4_af6db32f",
+   "question_type": "temporal-reasoning",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many days ago did I watch the Super Bowl?",
+   "gold": "17 days ago. 18 days (including the last day) is also acceptable.",
+   "hypothesis": "Based on the memories, you watched the Super Bowl on February 12, 2023 (Sunday). Today's date is March 1, 2023, so that was **17 days ago**."
+  },
+  {
+   "question_id": "gpt4_70e84552_abs",
+   "question_type": "abstention",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Which task did I complete first, fixing the fence or purchasing three cows from Peter?",
+   "gold": "The information provided is not enough. You mentioned fixing the fence but did not mention purchasing cows from Peter.",
+   "hypothesis": "I don't know."
+  },
+  {
+   "question_id": "cc5ded98",
+   "question_type": "knowledge-update",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How much time do I dedicate to coding exercises each day?",
+   "gold": "about two hours",
+   "hypothesis": "Based on the conversation memories, you've been dedicating **two hours each day** to coding exercises as of your most recent update on May 29, 2023. \n\nPreviously, on May 20, 2023, you mentioned dedicating about **one hour each day** to coding exercises, so it appears you've increased your daily commitment to practice over that time period."
+  },
+  {
+   "question_id": "bc149d6b",
+   "question_type": "multi-session",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": false,
+   "question": "What is the total weight of the new feed I purchased in the past two months?",
+   "gold": "70 pounds",
+   "hypothesis": "Based on the memories provided, I found one feed purchase: On May 22, 2023, you purchased a **50-pound batch of layer feed** from your local farm supply store (which cost $120 with a 10% discount applied).\n\nThis is the only feed purchase mentioned in the available memories within the past two months. If you made additional purchases, they are not reflected in the retrieved conversation history."
+  },
+  {
+   "question_id": "fca762bc",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I wanted to follow up on our previous conversation about language learning apps. You mentioned a few options, and I was wondering if you could remind me of the one that uses mnemonics to help learners memorize words and phrases?",
+   "gold": "Memrise",
+   "hypothesis": "Based on our previous conversation, **Memrise** is the app that uses mnemonics to help learners memorize words, phrases, and grammatical concepts."
+  },
+  {
+   "question_id": "75832dbd",
+   "question_type": "single-session-preference",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Can you recommend some recent publications or conferences that I might find interesting?",
+   "gold": "The user would prefer suggestions related to recent research papers, articles, or conferences that focus on artificial intelligence in healthcare, particularly those that involve deep learning for medical image analysis. They would not be interested in general AI topics or those unrelated to healthcare.",
+   "hypothesis": "Based on your research interests in deep learning for medical image analysis, particularly explainable AI, transfer learning, domain adaptation, and multi-modal image fusion, here are some relevant publications and conferences:\n\n**Key Conferences:**\n\n1. **MICCAI (Medical Image Computing and Computer-Assisted Intervention)** - The premier venue for medical imaging research, with strong tracks on deep learning interpretability and advanced techniques.\n\n2. **ISBI (IEEE International Symposium on Biomedical Imaging)** - Highly relevant for medical image analysis with emphasis on both traditional and deep learning approaches.\n\n3. **IPMI (Information Processing in Medical Imaging)** - Focuses on computational methods in medical imaging, including explainability and model interpretability.\n\n4. **NeurIPS, ICML, ICCV** - Top-tier ML/CV conferences with medical imaging applications tracks and explainability-focused workshops.\n\n**Key Journals:**\n\n1. **IEEE Transactions on Medical Imaging** - Publishes cutting-edge research on medical imaging analysis\n2. **Medical Image Analysis** - Dedicated journal for this field\n3. **IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI)**\n4. **arXiv** - For preprints on explainable AI and medical imaging\n\n**Research Areas to Follow:**\n\n- Grad-CAM, Attention mechanisms, and saliency mapping for medical image interpretation\n- Domain adaptation techniques for cross-site/cross-modality generalization\n- Multi-task learning for multi-modal fusion\n- Uncertainty quantification in medical imaging\n\nThese venues consistently feature the latest work on interpretable deep learning models in medical imaging, which aligns with your research interests."
+  },
+  {
+   "question_id": "36580ce8",
+   "question_type": "single-session-user",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "What health issue did I initially think was just a cold?",
+   "gold": "bronchitis",
+   "hypothesis": "Based on the retrieved memories, you initially thought **bronchitis** was just a cold, but it turned out to be much more serious."
+  },
+  {
+   "question_id": "gpt4_78cf46a3",
+   "question_type": "temporal-reasoning",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Which event happened first, the narrator losing their phone charger or the narrator receiving their new phone case?",
+   "gold": "Receiving the new phone case",
+   "hypothesis": "Based on the retrieved memories:\n\nThe narrator received their new phone case **first**. According to the memories, the user got their new phone case about a month before 2023/05/26 (around late April), while they lost their phone charger at the gym about two weeks before 2023/05/26 (around mid-May)."
+  },
+  {
+   "question_id": "26bdc477",
+   "question_type": "knowledge-update",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many trips have I taken my Canon EOS 80D camera on?",
+   "gold": "five",
+   "hypothesis": "Based on the memories, you've taken your Canon EOS 80D camera on **five trips**. \n\nIn an earlier conversation from March 2023, you mentioned taking it on three specific trips to Yellowstone, Yosemite, and the Grand Canyon. However, by May 30, 2023, you updated that count to five trips total, noting that it had \"been a beast\" as a travel companion."
+  },
+  {
+   "question_id": "1a8a66a6",
+   "question_type": "multi-session",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many magazine subscriptions do I currently have?",
+   "gold": 2,
+   "hypothesis": "Based on the retrieved conversation memories, you currently have **2 magazine subscriptions**:\n\n1. **The New Yorker** — subscribed in early February (mentioned as actively enjoyed as of April 1st)\n2. **Architectural Digest** — mentioned in your conversation as something you've already subscribed to\n\nYou also previously had a subscription to **Forbes**, which you canceled in early March because you weren't finding the articles interesting."
+  },
+  {
+   "question_id": "b759caee",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I was looking back at our previous conversation about buying unique engagement rings directly from designers. Can you remind me of the Instagram handle of the UK-based designer who works with unusual gemstones?",
+   "gold": "@jessica_poole_jewellery",
+   "hypothesis": "Based on the previous conversation about engagement rings, the UK-based designer who works with unusual gemstones is **Jessica Poole**, and her Instagram handle is **@jessica_poole_jewellery**. She creates stunning, unique engagement rings using a combination of traditional and contemporary techniques and is known for her passion for working with unusual gemstones."
+  },
+  {
+   "question_id": "7e00a6cb",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I'm planning my trip to Amsterdam again and I was wondering, what was the name of that hostel near the Red Light District that you recommended last time?",
+   "gold": "International Budget Hostel",
+   "hypothesis": "Based on the memories from our previous conversation, the hostel near the Red Light District that I recommended was the **International Budget Hostel**. \n\nAs I mentioned before, it offers affordable dormitory-style rooms and private rooms, and has a fully equipped kitchen and a lounge area. It's conveniently situated near the famous Red Light District, making it a great budget-friendly option for exploring that area of Amsterdam."
+  },
+  {
+   "question_id": "c8c3f81d",
+   "question_type": "single-session-user",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "What brand are my favorite running shoes?",
+   "gold": "Nike",
+   "hypothesis": "Nike is your favorite brand for running shoes. You've mentioned that Nike has been your favorite so far, and you've been using them for your daily 5K runs, noting that they've been holding up well. You purchased your current pair at an outlet mall in April at a 20% discount."
+  },
+  {
+   "question_id": "18dcd5a5",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I'm going back to our previous chat about the Lost Temple of the Djinn one-shot. Can you remind me how many mummies the party will face in the temple?",
+   "gold": "4",
+   "hypothesis": "According to the conversation from May 29, 2023, there are **4 mummies** that the party will face in the Lost Temple of the Djinn one-shot.\n\nEach mummy has:\n- **Armor Class:** 11\n- **Hit Points:** 45 (6d8 + 18)\n- **Speed:** 20 ft.\n\nThey possess two dangerous traits: the **Curse of the Pharaohs** (which curses attackers and prevents healing for 24 hours) and **Mummy Rot** (a disease effect from melee attacks)."
+  },
+  {
+   "question_id": "35a27287",
+   "question_type": "single-session-preference",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Can you recommend some interesting cultural events happening around me this weekend?",
+   "gold": "The user would prefer responses that suggest cultural events where they can practice their language skills, particularly Spanish and French. They would also appreciate if the event has a focus on language learning resources. They would not prefer events that do not provide opportunities for language practice or cultural exchange.",
+   "hypothesis": "I don't know — the memories don't contain information about your current location or this specific weekend's events."
+  },
+  {
+   "question_id": "b86304ba",
+   "question_type": "single-session-user",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How much is the painting of a sunset worth in terms of the amount I paid for it?",
+   "gold": "The painting is worth triple what I paid for it.",
+   "hypothesis": "Based on the memories retrieved, your sunset painting at the flea market is worth **triple** what you paid for it. You mentioned discovering this on May 30th and found it to be amazing that the value had increased so significantly.\n\nHowever, the specific purchase price isn't included in the retrieved memories, so I can't calculate the exact current value without knowing how much you originally paid. If you remember the purchase price, you can simply multiply it by 3 to get the estimated current value."
+  },
+  {
+   "question_id": "gpt4_59149c78",
+   "question_type": "temporal-reasoning",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I mentioned that I participated in an art-related event two weeks ago. Where was that event held at?",
+   "gold": "The Metropolitan Museum of Art.",
+   "hypothesis": "I don't know"
+  },
+  {
+   "question_id": "42ec0761",
+   "question_type": "knowledge-update",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "Do I have a spare screwdriver for opening up my laptop?",
+   "gold": "Yes",
+   "hypothesis": "Yes, you do have a spare screwdriver. You picked it up when you organized your computer desk a while back, so you're all set for opening up your laptop to clean the fans or work on other maintenance tasks."
+  },
+  {
+   "question_id": "ba358f49",
+   "question_type": "multi-session",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How many years will I be when my friend Rachel gets married?",
+   "gold": "33",
+   "hypothesis": "I don't know — the memories mention Rachel is getting married next year (2023), but your age or birth date isn't included in the retrieved memories."
+  },
+  {
+   "question_id": "8cf51dda",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I'm going back to our previous conversation about the grant aim page on molecular subtypes and endometrial cancer. Can you remind me what were the three objectives we outlined for the project?",
+   "gold": "The three objectives were: 1) to identify molecular subtypes of endometrial cancer, 2) to investigate their clinical and biological significance, and 3) to develop biomarkers for early detection and prognosis.",
+   "hypothesis": "Based on our previous conversation about the grant aim page on molecular subtypes and endometrial cancer, here are the three objectives we outlined for the project:\n\n1. **To identify molecular subtypes of endometrial cancer** using a combination of genomic and transcriptomic approaches.\n\n2. **To investigate the clinical and biological significance** of the identified molecular subtypes, including their association with patient outcomes and response to therapy.\n\n3. **To develop biomarkers for the early detection and prognosis** of endometrial cancer based on the identified molecular subtypes.\n\nThese objectives were designed to comprehensively address the understanding of endometrial cancer at the molecular level, with the ultimate goal of improving diagnosis, prognosis, and treatment outcomes for patients."
+  },
+  {
+   "question_id": "195a1a1b",
+   "question_type": "single-session-preference",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": false,
+   "note": "CORRECTED after re-reading full text: answer recommends phone meditation apps; rubric explicitly excludes phone use. Original label was made from a 600-char truncation that clipped the violation.",
+   "question": "Can you suggest some activities that I can do in the evening?",
+   "gold": "The user would prefer suggestions that involve relaxing activities that can be done in the evening, preferably before 9:30 pm. They would not prefer suggestions that involve using their phone or watching TV, as these activities have been affecting their sleep quality.",
+   "hypothesis": "Based on your conversation memories, I can suggest several evening activities that align with your interests:\n\n**Creative Activities:**\n- Work on your cityscape painting using fabric stamping and drybrushing techniques — this could be a relaxing evening activity\n- Explore other art projects or sketching\n\n**Movement & Fitness:**\n- Practice yoga or gentle stretching (you've had great success with 8 weeks of yoga classes recently and noticed improved flexibility)\n- Hip hop dance sessions similar to your Street Beats classes\n- Evening walks or light outdoor activities\n\n**Relaxation & Mindfulness:**\n- Guided meditation using apps like Headspace, Calm, or Insight Timer (you asked about meditation apps for bedtime relaxation)\n- Deep breathing exercises or journaling\n- Reading\n\n**Social & Exploration:**\n- Attend local dance events or battles (to stay connected to the dance community)\n- Explore street art in person (you mentioned interest in seeing street art, particularly Melbourne's scene)\n\n**Practical Evening Routine:**\n- Build a wind-down routine 60-90 minutes before bed with relaxation techniques to help you sleep better (which you asked about recently)\n\nGiven your varied interests in yoga, art, dance, and wellness, evening activities that combine creative expression with relaxation seem to suit you well. What type of evening activities are you most drawn to right now?"
+  },
+  {
+   "question_id": "9a707b82",
+   "question_type": "temporal-reasoning",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I mentioned cooking something for my friend a couple of days ago. What was it?",
+   "gold": "a chocolate cake",
+   "hypothesis": "I don't know — the memories don't contain a mention of you cooking something for your friend a couple of days ago."
+  },
+  {
+   "question_id": "01493427",
+   "question_type": "knowledge-update",
+   "human_correct": true,
+   "borderline": true,
+   "manufactured": false,
+   "question": "How many new postcards have I added to my collection since I started collecting again?",
+   "gold": "25",
+   "hypothesis": "According to the memories, you explicitly stated you had added **25 new postcards** to your collection since starting to collect again (as of November 30). You also mentioned acquiring **8 more postcards** from an antique shop visit on that same day, which would bring your total to approximately **33 postcards** if those are in addition to the 25.\n\nFor reference, you had mentioned having 17 new postcards back in August, so you added 8 between August and November, then acquired 8 more later that same day in November."
+  },
+  {
+   "question_id": "ef9cf60a",
+   "question_type": "multi-session",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "How much did I spend on gifts for my sister?",
+   "gold": "$300",
+   "hypothesis": "Based on the memories, you've spent **$300** on confirmed gifts for your sister:\n\n1. **Silver necklace from Tiffany's**: $200\n2. **Gift card to her favorite spa**: $100\n\nYou're also considering additional gifts for her upcoming birthday (a spa day package around $100 and a complementary gift like an essential oil diffuser for $20-$50), but these haven't been purchased yet."
+  },
+  {
+   "question_id": "e982271f",
+   "question_type": "single-session-assistant",
+   "human_correct": true,
+   "borderline": false,
+   "manufactured": false,
+   "question": "I was going through our previous chat. Can you remind me of the name of the last venue you recommended in the list of popular venues in Portland for indie music shows?",
+   "gold": "Revolution Hall",
+   "hypothesis": "Based on the conversation memories, the last venue I recommended in the list of popular venues in Portland for indie music shows was **Revolution Hall**."
+  },
+  {
+   "question_id": "118b2229__neg",
+   "question_type": "single-session-user",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "45 minutes -> 25 minutes",
+   "question": "How long is my daily commute to work?",
+   "gold": "45 minutes each way",
+   "hypothesis": "Your daily commute is 25 minutes each way."
+  },
+  {
+   "question_id": "0e5e2d1a__neg",
+   "question_type": "single-session-assistant",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "38 subjects -> 52 subjects",
+   "question": "I wanted to follow up on our previous conversation about binaural beats for anxiety and depression. Can you remind me how many subjects were in the study published in the journal Music and Medicine that found significant reductions in symptoms of depression, anxiety, and stress?",
+   "gold": "38 subjects",
+   "hypothesis": "Based on the conversation memories, the study published in the journal Music and Medicine involved **52 subjects** who listened to binaural beats for 30 minutes daily for three weeks. The study found significant reductions in symptoms of depression, anxiety, and stress."
+  },
+  {
+   "question_id": "3d86fd0a__neg",
+   "question_type": "single-session-user",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "a coffee shop in the city -> a bookstore downtown",
+   "question": "Where did I meet Sophia?",
+   "gold": "a coffee shop in the city",
+   "hypothesis": "You met Sophia at a bookstore downtown."
+  },
+  {
+   "question_id": "099778bb__neg",
+   "question_type": "multi-session",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "20% -> 35%",
+   "question": "What percentage of leadership positions do women hold in the my company?",
+   "gold": "20%",
+   "hypothesis": "Based on the conversation memories, women hold **35% of the leadership positions** in your company.\n\nYou mentioned that women occupy 20 leadership positions out of a total of 100 leadership positions across the company."
+  },
+  {
+   "question_id": "d596882b__neg",
+   "question_type": "single-session-assistant",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "By Chloe -> Green Fork",
+   "question": "I'm planning another trip to New York City and I was wondering if you could remind me of that vegan eatery you recommended last time, the one with multiple locations throughout the city?",
+   "gold": "By Chloe",
+   "hypothesis": "Based on our previous conversation, I recommended **Green Fork** — the popular plant-based eatery with multiple locations throughout New York City. They offer vegan burgers, salads, pastas, and baked goods. It's a great spot for plant-based dining when you're back in the city!"
+  },
+  {
+   "question_id": "ad7109d1__neg",
+   "question_type": "single-session-user",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "500 Mbps -> 250 Mbps",
+   "question": "What speed is my new internet plan?",
+   "gold": "500 Mbps",
+   "hypothesis": "Your new internet plan speed is **250 Mbps**. You upgraded to it about three weeks before May 24, 2023, and you mentioned it has made a huge difference, especially when streaming movies on Netflix."
+  },
+  {
+   "question_id": "06db6396__neg",
+   "question_type": "knowledge-update",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "5 projects -> 8 projects",
+   "question": "How many projects have I completed since starting painting classes?",
+   "gold": "5",
+   "hypothesis": "Based on your conversation memories, you've completed **8 projects** since starting painting classes. You mentioned finishing your 5th project on October 9, 2023, and expressed feeling accomplished by that milestone."
+  },
+  {
+   "question_id": "e831120c__neg",
+   "question_type": "multi-session",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "3.5 weeks -> 6 weeks",
+   "question": "How many weeks did it take me to watch all the Marvel Cinematic Universe movies and the main Star Wars films?",
+   "gold": "3.5 weeks",
+   "hypothesis": "Based on your memories:\n\n- **Marvel Cinematic Universe** (22 movies): 2 weeks\n- **Star Wars main films**: 1 week and a half (1.5 weeks)\n\nIf you're asking about the combined total time for both viewing marathons, that would be **6 weeks**."
+  },
+  {
+   "question_id": "6ade9755__neg",
+   "question_type": "single-session-user",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "Serenity Yoga -> Harmony Yoga",
+   "question": "Where do I take yoga classes?",
+   "gold": "Serenity Yoga",
+   "hypothesis": "You take yoga classes at Harmony Yoga studio. On days when you can't make it to the studio, you practice at home using the Down Dog app. You also have a Sunday morning yoga routine with your best friend Sarah, which includes a yoga class followed by brunch."
+  },
+  {
+   "question_id": "36580ce8__neg",
+   "question_type": "single-session-user",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "bronchitis -> pneumonia",
+   "question": "What health issue did I initially think was just a cold?",
+   "gold": "bronchitis",
+   "hypothesis": "Based on the retrieved memories, you initially thought **pneumonia** was just a cold, but it turned out to be much more serious."
+  },
+  {
+   "question_id": "b759caee__neg",
+   "question_type": "single-session-assistant",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "@jessica_poole_jewellery -> @emma_clarke_gems",
+   "question": "I was looking back at our previous conversation about buying unique engagement rings directly from designers. Can you remind me of the Instagram handle of the UK-based designer who works with unusual gemstones?",
+   "gold": "@jessica_poole_jewellery",
+   "hypothesis": "Based on the previous conversation about engagement rings, the UK-based designer who works with unusual gemstones is **Jessica Poole**, and her Instagram handle is **@emma_clarke_gems**. She creates stunning, unique engagement rings using a combination of traditional and contemporary techniques and is known for her passion for working with unusual gemstones."
+  },
+  {
+   "question_id": "gpt4_af6db32f__neg",
+   "question_type": "temporal-reasoning",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "17 days ago -> 45 days ago",
+   "question": "How many days ago did I watch the Super Bowl?",
+   "gold": "17 days ago. 18 days (including the last day) is also acceptable.",
+   "hypothesis": "Based on the memories, you watched the Super Bowl on February 12, 2023 (Sunday). Today's date is March 1, 2023, so that was **45 days ago**."
+  },
+  {
+   "question_id": "c8c3f81d__neg",
+   "question_type": "single-session-user",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "Nike -> Adidas",
+   "question": "What brand are my favorite running shoes?",
+   "gold": "Nike",
+   "hypothesis": "Adidas is your favorite brand for running shoes. You've mentioned that Adidas has been your favorite so far, and you've been using them for your daily 5K runs, noting that they've been holding up well. You purchased your current pair at an outlet mall in April at a 20% discount."
+  },
+  {
+   "question_id": "26bdc477__neg",
+   "question_type": "knowledge-update",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "five trips -> nine trips",
+   "question": "How many trips have I taken my Canon EOS 80D camera on?",
+   "gold": "five",
+   "hypothesis": "Based on the memories, you've taken your Canon EOS 80D camera on **nine trips**. \n\nIn an earlier conversation from March 2023, you mentioned taking it on three specific trips to Yellowstone, Yosemite, and the Grand Canyon. However, by May 30, 2023, you updated that count to nine trips total, noting that it had \"been a beast\" as a travel companion."
+  },
+  {
+   "question_id": "b86304ba__neg",
+   "question_type": "single-session-user",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "triple -> double",
+   "question": "How much is the painting of a sunset worth in terms of the amount I paid for it?",
+   "gold": "The painting is worth triple what I paid for it.",
+   "hypothesis": "Based on the memories retrieved, your sunset painting at the flea market is worth **double** what you paid for it. You mentioned discovering this on May 30th and found it to be amazing that the value had increased so significantly.\n\nHowever, the specific purchase price isn't included in the retrieved memories, so I can't calculate the exact current value without knowing how much you originally paid. If you remember the purchase price, you can simply multiply it by 3 to get the estimated current value."
+  },
+  {
+   "question_id": "ef9cf60a__neg",
+   "question_type": "multi-session",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "$300 -> $750",
+   "question": "How much did I spend on gifts for my sister?",
+   "gold": "$300",
+   "hypothesis": "Based on the memories, you've spent **$750** on confirmed gifts for your sister:\n\n1. **Silver necklace from Tiffany's**: $200\n2. **Gift card to her favorite spa**: $100\n\nYou're also considering additional gifts for her upcoming birthday (a spa day package around $100 and a complementary gift like an essential oil diffuser for $20-$50), but these haven't been purchased yet."
+  },
+  {
+   "question_id": "e982271f__neg",
+   "question_type": "single-session-assistant",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "Revolution Hall -> Doug Fir Lounge",
+   "question": "I was going through our previous chat. Can you remind me of the name of the last venue you recommended in the list of popular venues in Portland for indie music shows?",
+   "gold": "Revolution Hall",
+   "hypothesis": "Based on the conversation memories, the last venue I recommended in the list of popular venues in Portland for indie music shows was **Doug Fir Lounge**."
+  },
+  {
+   "question_id": "88432d0a_abs__neg",
+   "question_type": "abstention",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "abstention -> confident fabricated answer",
+   "question": "How many times did I bake egg tarts in the past two weeks?",
+   "gold": "The information provided is not enough. You did not mention baking egg tarts.",
+   "hypothesis": "You baked egg tarts three times in the past two weeks — on the 4th, the 9th, and the 13th."
+  },
+  {
+   "question_id": "gpt4_78cf46a3__neg",
+   "question_type": "temporal-reasoning",
+   "human_correct": false,
+   "borderline": false,
+   "manufactured": true,
+   "corruption": "event order reversed",
+   "question": "Which event happened first, the narrator losing their phone charger or the narrator receiving their new phone case?",
+   "gold": "Receiving the new phone case",
+   "hypothesis": "Based on the retrieved memories: The narrator lost their phone charger **first**. According to the memories, the user lost their charger at the gym about a month before 2023/05/26 (around late April), while they received their new phone case about two weeks before 2023/05/26 (around mid-May)."
+  }
+ ]
+}

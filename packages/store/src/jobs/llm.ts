@@ -64,6 +64,8 @@ export interface ClaudeCliConfig {
   /** Command prefix (default ["claude"]); override for tests. */
   cmd?: string[];
   timeoutMs?: number;
+  /** Attempts per call including the first (default 4). See complete(). */
+  retries?: number;
 }
 
 /**
@@ -74,7 +76,30 @@ export interface ClaudeCliConfig {
 export class ClaudeCliLlm implements LlmClient {
   constructor(private readonly config: ClaudeCliConfig = {}) {}
 
-  complete(system: string, user: string): Promise<string> {
+  /**
+   * Retries transient CLI failures with exponential backoff. Measured need: a
+   * 169-question benchmark round lost 143 questions to `Command failed` under
+   * parallel shards, and the caller's per-question try/catch turned that into a
+   * *smaller* run rather than a failed one — 26 questions reported as 96.2%.
+   * A dropped question silently changes what the score means, so absorb the
+   * blip here rather than let it reshape the denominator upstream.
+   */
+  async complete(system: string, user: string): Promise<string> {
+    const attempts = this.config.retries ?? 4;
+    let last: unknown;
+    for (let i = 0; i < attempts; i++) {
+      // 0s, 2s, 6s, 14s — long enough for a rate-limit window to clear.
+      if (i > 0) await new Promise((r) => setTimeout(r, (2 ** i - 1) * 2000));
+      try {
+        return await this.run(system, user);
+      } catch (err) {
+        last = err;
+      }
+    }
+    throw last;
+  }
+
+  private run(system: string, user: string): Promise<string> {
     const [cmd, ...prefix] = this.config.cmd ?? ["claude"];
     // Full --system-prompt override (not --append) + user prompt as positional
     // argv + neutral cwd: the CLI is a coding agent, and its project context,
