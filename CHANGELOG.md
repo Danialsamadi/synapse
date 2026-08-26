@@ -6,6 +6,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ## [Unreleased]
 
 ### Added
+- CLI inside the published `synapse-os` package: `remember`, `query`, `list`, `get`,
+  `delete`, `import`, `export`, `reembed`, `backup`, `restore` — same store, env,
+  and write guards as the MCP server. No args (or `mcp`) still starts the stdio
+  MCP server, so existing `npx -y synapse-os` client configs keep working.
+- Hermes / constrained-environment guide (`integrations/hermes/`): correct
+  `env:`-object MCP YAML, `--ignore-scripts` install path, Ollama embeddings,
+  episodic cron-log patterns (no entityKey on run logs), WAL read-only inspect.
+- Startup embedding report on stderr: active provider + whether vectors are
+  semantic; loud warning in hash mode. `GET /health` now reports the same.
+- Daily TTL/decay re-sweep in long-lived MCP processes (was startup-only).
+
+### Changed
+- **Breaking (defaults):** embedding provider default is no longer `local`.
+  Selection: explicit `SYNAPSE_EMBED_PROVIDER` wins; a configured
+  `SYNAPSE_EMBED_API_KEY`/`SYNAPSE_EMBED_BASE_URL` implies `openai`; otherwise
+  `hash`. `npx -y synapse-os` no longer forces the transformers.js/ONNX stack —
+  `@huggingface/transformers` moved from a hard dependency to an optional peer
+  (install it explicitly for `SYNAPSE_EMBED_PROVIDER=local`).
+- Non-semantic embeddings (hash) no longer inject noise: the vector score term
+  is disabled, retrieval candidacy is FTS5-keyword-only, and write-time semantic
+  dedup/absorb is skipped. Golden-case evals are now measured in this worst-case
+  mode (precision@5 0.969, stale 0.000, pass 0.969).
+- Episodic memories are never semantically absorbed/deduped — distinct cron run
+  logs with near-identical wording all survive (exact-content dedup still applies).
+- README: honest provider matrix (size/network/toolchain per provider), local-first
+  and scale claims scoped to what is measured, stdio-vs-HTTP packaging clarified.
 - Graph-aware retrieval: 1-hop link expansion — a hit on a "chapter" memory pulls
   its "book" along via part_of/related_to links at half score, filling leftover
   limit slots; supersedes/contradicts edges are never followed. New `part_of`

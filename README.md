@@ -128,6 +128,50 @@ open http://localhost:8787/inspector
 ./scripts/demo.sh
 ```
 
+## The `synapse-os` package: CLI + MCP in one
+
+The published npm package is both the stdio MCP server **and** a full CLI sharing the same store, env vars, and write guards:
+
+```bash
+npx -y synapse-os                      # no args → stdio MCP server (existing configs keep working)
+npx -y synapse-os mcp                  # explicit MCP mode
+npx -y synapse-os remember semantic "User prefers TypeScript"
+npx -y synapse-os query "typescript preference"
+npx -y synapse-os list / get / delete / import / export
+npx -y synapse-os reembed              # after switching embedding provider/model
+npx -y synapse-os backup [dest] / restore <src> --force
+```
+
+**What's in the package:** the stdio MCP server + CLI, on better-sqlite3. The HTTP/SSE API and Inspector UI live in this monorepo (`apps/api`) and are **not** part of the `synapse-os` package — "works with any MCP client" means stdio. Heavy ML is opt-in: installing `synapse-os` does **not** pull transformers.js/ONNX; `SYNAPSE_EMBED_PROVIDER=local` requires a separate `npm i @huggingface/transformers`.
+
+To inspect the DB while an MCP host holds it (WAL mode allows concurrent readers): `npx -y synapse-os list`, or read-only SQL: `sqlite3 "file:$HOME/.synapse/synapse.db?mode=ro" "SELECT type, status, content FROM memories"`.
+
+### Constrained environments (containers, gateways, Hermes)
+
+Small `/tmp`, no native toolchain, or no GPU runtime? This is the supported path:
+
+```bash
+npm install -g synapse-os        # no onnxruntime, no model downloads
+# if install scripts are blocked or better-sqlite3 has no prebuilt binary for your platform:
+npm install -g synapse-os --ignore-scripts && (cd "$(npm root -g)/synapse-os" && npm rebuild better-sqlite3)
+```
+
+- Default embeddings are `hash` (non-semantic, loud warning at startup): retrieval runs on FTS5 + importance/recency — about 80% useful for structured/cron-log recall, blind to paraphrase.
+- For real semantic recall without heavy npm installs, use Ollama (see provider matrix) and run `synapse-os reembed` after switching.
+- Hermes MCP config — env vars go in an `env:` **object**, not `--env` CLI args:
+
+```yaml
+mcpServers:
+  synapse:
+    command: npx
+    args: ["-y", "synapse-os"]
+    env:
+      SYNAPSE_DB: /root/.synapse/synapse.db
+      SYNAPSE_EMBED_PROVIDER: hash
+```
+
+Full Hermes guide, including cron-run episodic logging patterns: [`integrations/hermes/`](integrations/hermes/).
+
 ## Use from any AI agent
 
 Synapse exposes `memory_write`, `memory_retrieve`, `memory_digest`, and `memory_feedback` over MCP. Any MCP-capable agent can use it — verified live with Claude Code (write in one session, recall in a fresh one).
@@ -205,9 +249,11 @@ Synapse refuses to store credentials. Every write path — MCP, HTTP API, CLI, t
 | Metric | Value |
 |--------|-------|
 | Golden cases | 32 |
-| Precision@5 | 0.984 |
+| Precision@5 | 0.969 |
 | Stale-fact rate | 0.000 |
 | Pass rate | 0.969 |
+
+Golden-case numbers are measured in **hash mode** (no semantic vectors — FTS5 + importance/recency/confidence only), i.e. the worst-case constrained-environment configuration. Real embedding providers add paraphrase recall on top. Scale caveat: these are personal-scale figures (hundreds to ~1K memories, linear vector scan); 10K+ retrieval is unbenchmarked — treat performance claims beyond that as unproven.
 
 On the external **engram-v3** benchmark (LongMemEval-format, 50 multi-session QA questions, LLM-judged): **96.0%** (48/50) — ingest the haystack sessions, retrieve, answer from retrieved memories only. Full results, metric caveats, and reproduction commands: [BENCHMARKS.md](BENCHMARKS.md).
 
@@ -225,26 +271,28 @@ Behavioral evals go beyond retrieval ranking and test outcomes — the failure m
 
 ### Where your data goes
 
-Storage and retrieval are fully local — SQLite on your disk, no network calls. Two paths send memory content off-device, and only when you opt into them:
+Storage and retrieval are local — SQLite on your disk. "Local-first" here means the store and ranking never need a network; some optional features do talk to endpoints you configure:
 
 - **Consolidation** (`POST /v1/jobs/consolidate`): new episodic memories are sent to the LLM at `SYNAPSE_LLM_BASE_URL` (default `https://api.openai.com/v1`) to extract semantic facts. Point it at a local model (e.g. Ollama) to keep everything on-device.
-- **Embeddings:** the default provider runs fully on-device (all-MiniLM-L6-v2 via transformers.js; the model itself downloads once from HuggingFace). Only the OpenAI-compatible embedder (`SYNAPSE_EMBED_PROVIDER=openai`) sends memory text to an external endpoint.
+- **Embeddings:** the default `hash` provider makes no network calls (and no semantic vectors — see the provider matrix below). `openai` sends memory text to whatever endpoint you configure (localhost for Ollama; a third party for hosted APIs). `local` (transformers.js) downloads the model once from HuggingFace, then runs fully on-device.
 
-If you never run consolidation and never configure a remote embedder, no memory content leaves your machine.
+With the defaults (hash, no consolidation), no memory content ever leaves your machine and no network request is made. With `local` embeddings, the only network traffic is the one-time model download.
 
-## Choosing your embedding model (plug and play)
+## Choosing your embedding provider (plug and play)
 
-Everything is switchable by env var — no code changes:
+Everything is switchable by env var — no code changes. Honest expectations per provider:
 
-| Setup | Env |
-|---|---|
-| Local, no API key (default) | `SYNAPSE_EMBED_PROVIDER=local` — all-MiniLM-L6-v2, 384 dims |
-| Local, different HF model | `SYNAPSE_EMBED_PROVIDER=local SYNAPSE_EMBED_MODEL=Xenova/bge-small-en-v1.5` |
-| Ollama (fully on-device) | `SYNAPSE_EMBED_PROVIDER=openai SYNAPSE_EMBED_BASE_URL=http://localhost:11434/v1 SYNAPSE_EMBED_MODEL=nomic-embed-text` |
-| OpenAI | `SYNAPSE_EMBED_PROVIDER=openai SYNAPSE_EMBED_API_KEY=sk-...` |
-| Offline deterministic (tests) | `SYNAPSE_EMBED_PROVIDER=hash` |
+| Provider | Env | Semantic? | Install weight | Network |
+|---|---|---|---|---|
+| `hash` (default) | `SYNAPSE_EMBED_PROVIDER=hash` | **No** — deterministic char-frequency vectors | zero extra | none |
+| `openai` — any OpenAI-compatible endpoint, incl. **Ollama** | `SYNAPSE_EMBED_PROVIDER=openai SYNAPSE_EMBED_BASE_URL=... SYNAPSE_EMBED_MODEL=...` (`SYNAPSE_EMBED_API_KEY` if the endpoint needs one) | Yes | zero extra | per-request to the endpoint (localhost for Ollama) |
+| `local` — transformers.js | `SYNAPSE_EMBED_PROVIDER=local` (+ optional `SYNAPSE_EMBED_MODEL=Xenova/bge-small-en-v1.5`) | Yes | **heavy, opt-in**: `npm i @huggingface/transformers` pulls the ONNX runtime (~100MB+ native binaries); model (~25MB) downloads once from HuggingFace | one-time model download, then fully on-device |
 
-**After switching provider or model, run `synapse reembed`** — it re-embeds every stored memory with the new model. Without it, old memories keep vectors the new model can't compare against and silently fall back to keyword-only scoring.
+**Default selection:** an explicit `SYNAPSE_EMBED_PROVIDER` always wins. Otherwise, if `SYNAPSE_EMBED_API_KEY` or `SYNAPSE_EMBED_BASE_URL` is set, Synapse assumes `openai`. Otherwise it runs `hash` and prints a loud startup warning: in hash mode the vector term is disabled entirely (no noise in the ranking) and retrieval works on FTS5 keyword search + importance/recency/confidence — genuinely useful for structured/keyword-ish recall, blind to paraphrase. Semantic dedup/absorb at write time is also disabled in hash mode, so near-duplicate wording is stored rather than mis-merged.
+
+**Recommended path for constrained environments** (containers, no native toolchain, small disks): Ollama — real embeddings, no npm-install weight: `ollama pull nomic-embed-text`, then the `openai` row above with `SYNAPSE_EMBED_BASE_URL=http://localhost:11434/v1`.
+
+**After switching provider or model, run `npx -y synapse-os reembed`** — it re-embeds every stored memory with the new model. Without it, old memories keep vectors the new model can't compare against and silently fall back to keyword-only scoring.
 
 The LLM for consolidation/conflict jobs is equally pluggable: `SYNAPSE_LLM_BASE_URL` + `SYNAPSE_LLM_MODEL` + `SYNAPSE_LLM_API_KEY` accept any OpenAI-compatible endpoint (Ollama, LM Studio, OpenRouter, ...). Library users can go further and inject any `EmbeddingProvider` implementation directly into `RetrievalService`/`writeMemory`.
 

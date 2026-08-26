@@ -23,6 +23,15 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
     this.pipe ??= import("@huggingface/transformers").then(
       ({ pipeline }) =>
         pipeline("feature-extraction", this.modelId, { dtype: "q8" }) as never,
+      (err: unknown) => {
+        throw new Error(
+          "SYNAPSE_EMBED_PROVIDER=local needs the optional @huggingface/transformers package " +
+            "(large: pulls the ONNX runtime). Install it next to synapse-os: npm i @huggingface/transformers. " +
+            "Lighter alternative with real embeddings: SYNAPSE_EMBED_PROVIDER=openai " +
+            "SYNAPSE_EMBED_BASE_URL=http://localhost:11434/v1 SYNAPSE_EMBED_MODEL=nomic-embed-text (Ollama). " +
+            `Underlying error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      },
     );
     return this.pipe;
   }

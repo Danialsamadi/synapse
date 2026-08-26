@@ -7,7 +7,7 @@ import { RetrievalService } from "./retrieval.js";
 describe("retrieval minScore abstention", () => {
   it("filters weak matches when minScore is set, keeps them otherwise", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const retrieval = new RetrievalService(repo, new HashEmbeddingProvider());
+    const retrieval = new RetrievalService(repo, new HashEmbeddingProvider(32, { semantic: true }));
     repo.create({ userId: "local", type: "semantic", content: "User lives in Toronto" });
 
     const loose = await retrieval.retrieve({ query: "quantum chromodynamics lattice", userId: "local", limit: 8 });

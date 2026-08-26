@@ -79,6 +79,47 @@ describe("writeMemory semantic dedup", () => {
     assert.equal(repo.getEmbeddings([res.memory.id]).size, 1);
   });
 
+  it("never absorbs episodic memories: distinct run logs both survive even at cosine 0.99", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = fakeEmbedder({
+      "Monitor run 2026-08-25: success, 5 articles": [1, 0, 0],
+      "Monitor run 2026-08-26: success, 7 articles": [0.99, 0.141, 0],
+    });
+    await writeMemory(repo, embedder, {
+      userId: "local", type: "episodic", content: "Monitor run 2026-08-25: success, 5 articles",
+    });
+    const second = await writeMemory(repo, embedder, {
+      userId: "local", type: "episodic", content: "Monitor run 2026-08-26: success, 7 articles",
+    });
+    assert.ok(!("rejected" in second));
+    assert.equal(second.deduped, false);
+    assert.equal(repo.list("local", { status: "active" }).length, 2);
+  });
+
+  it("skips semantic dedup entirely when the embedder is non-semantic", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    // Identical vectors, but semantic: false — cosine 1.0 must not dedup.
+    const embedder: EmbeddingProvider = {
+      model: "fake-nonsemantic", semantic: false,
+      async embed(texts) { return texts.map(() => [1, 0, 0]); },
+    };
+    await writeMemory(repo, embedder, { userId: "local", type: "semantic", content: "likes tea" });
+    const second = await writeMemory(repo, embedder, { userId: "local", type: "semantic", content: "likes green tea" });
+    assert.ok(!("rejected" in second));
+    assert.equal(second.deduped, false);
+    assert.equal(repo.list("local", { status: "active" }).length, 2);
+  });
+
+  it("exact content-hash dedup still applies under a non-semantic embedder", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider();
+    await writeMemory(repo, embedder, { userId: "local", type: "episodic", content: "same log line" });
+    const second = await writeMemory(repo, embedder, { userId: "local", type: "episodic", content: "same log line" });
+    assert.ok(!("rejected" in second));
+    assert.equal(second.deduped, true);
+    assert.equal(repo.list("local", { status: "active" }).length, 1);
+  });
+
   it("skips semantic dedup when entityKey is set (supersession wins)", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const embedder = fakeEmbedder({

@@ -1,11 +1,10 @@
-#!/usr/bin/env node
 import { MemoryTypeSchema, resolveDbPath } from "@synapse/core";
 import { MemoryRepository, RetrievalService, createEmbedder, reembedAll, writeMemory } from "@synapse/store";
 import { splitIntoMemories } from "./import.js";
 
 const dbPath = resolveDbPath;
 
-function usage(): never {
+function usage(code = 1): never {
   console.log(`synapse — Personal AI Memory OS CLI
 
 Usage:
@@ -19,17 +18,21 @@ Usage:
   synapse backup [dest]
   synapse restore <src> --force
   synapse delete <id>
+  synapse mcp                  (default: start the stdio MCP server)
 
 Types: episodic | semantic | procedural | working
 Env: SYNAPSE_DB=path/to.db (default: ~/.synapse/synapse.db)
+     SYNAPSE_EMBED_PROVIDER=hash|openai|local (default: openai if a key/base
+     URL is configured, else hash — see README for the provider matrix)
 `);
-  process.exit(1);
+  process.exit(code);
 }
 
-async function main(): Promise<void> {
-  process.env.SYNAPSE_EMBED_PROVIDER ??= "local";
-  const [cmd, ...rest] = process.argv.slice(2);
+/** Shared CLI dispatch — same store, env, and guards as the MCP server. */
+export async function runCli(argv: string[]): Promise<void> {
+  const [cmd, ...rest] = argv;
   if (!cmd) usage();
+  if (cmd === "help" || cmd === "--help" || cmd === "-h") usage(0);
 
   if (cmd === "restore") {
     // Handled before opening the repository: restoring over a live handle corrupts WAL state.
@@ -198,8 +201,3 @@ async function main(): Promise<void> {
     repo.close();
   }
 }
-
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});

@@ -18,8 +18,16 @@ export const LlmConfigSchema = z.object({
 export type LlmConfig = z.infer<typeof LlmConfigSchema>;
 
 export function loadEmbeddingConfig(): EmbeddingConfig {
+  // Default selection: an explicit SYNAPSE_EMBED_PROVIDER always wins; a
+  // configured OpenAI-compatible endpoint (key or base URL) implies "openai";
+  // otherwise "hash" — retrieval stays useful via FTS5 + non-vector signals,
+  // and nothing heavy downloads. "local" (transformers.js) is opt-in only.
+  const inferred =
+    process.env.SYNAPSE_EMBED_API_KEY || process.env.SYNAPSE_EMBED_BASE_URL
+      ? "openai"
+      : undefined;
   return EmbeddingConfigSchema.parse({
-    provider: process.env.SYNAPSE_EMBED_PROVIDER,
+    provider: process.env.SYNAPSE_EMBED_PROVIDER ?? inferred,
     baseUrl: process.env.SYNAPSE_EMBED_BASE_URL,
     apiKey: process.env.SYNAPSE_EMBED_API_KEY,
     model: process.env.SYNAPSE_EMBED_MODEL,

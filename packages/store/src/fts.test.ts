@@ -198,7 +198,7 @@ describe("buildMatchExpr", () => {
 describe("B′ union candidacy", () => {
   it("a vector-only hit (zero token overlap) still surfaces", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const retrieval = new RetrievalService(repo, embedder);
     const m = repo.create({ userId: "local", type: "semantic", content: "alpha beta gamma" });
     const [vec] = await embedder.embed(["totally different words"]);
@@ -213,7 +213,7 @@ describe("B′ union candidacy", () => {
 
   it("keyword hits beyond vector top-K still surface, scored by bm25", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const retrieval = new RetrievalService(repo, embedder);
     const target = repo.create({ userId: "local", type: "semantic", content: "the xylophone recital" });
     const [tv] = await embedder.embed([target.content]);
@@ -226,7 +226,7 @@ describe("B′ union candidacy", () => {
 
   it("falls back to legacy scoring when FTS is broken, and audits it", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const retrieval = new RetrievalService(repo, embedder);
     const m = repo.create({ userId: "local", type: "semantic", content: "fallback fact about pottery" });
     const [v] = await embedder.embed([m.content]);
@@ -244,7 +244,7 @@ describe("B′ union candidacy", () => {
 
   it("caps candidates at K without error when eligible >> K", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const retrieval = new RetrievalService(repo, embedder);
     for (let i = 0; i < 50; i++) {
       const m = repo.create({ userId: "local", type: "semantic", content: `note number ${i} about things` });
@@ -258,7 +258,7 @@ describe("B′ union candidacy", () => {
 
   it("audit records eligibleCount and stats reports union size", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const retrieval = new RetrievalService(repo, embedder);
     for (let i = 0; i < 5; i++) {
       const m = repo.create({ userId: "local", type: "semantic", content: `filler memory ${i}` });
@@ -273,7 +273,7 @@ describe("B′ union candidacy", () => {
 
   it("a memory in neither keyword hits nor vector top-K is dropped from candidacy", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const retrieval = new RetrievalService(repo, embedder);
     const query = "quokka snorkeling festival";
     const total = 45; // limit:1 -> K = max(1*4, 40) = 40, so 45 eligible guarantees a K-shortfall
