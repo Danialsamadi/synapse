@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-26
+
 ### Added
 - CLI inside the published `synapse-os` package: `remember`, `query`, `list`, `get`,
   `delete`, `import`, `export`, `reembed`, `backup`, `restore` — same store, env,
