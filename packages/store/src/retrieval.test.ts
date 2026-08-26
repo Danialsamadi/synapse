@@ -7,7 +7,7 @@ import type { Memory } from "@synapse/core";
 
 async function seeded() {
   const repo = new MemoryRepository({ path: ":memory:" });
-  const embedder = new HashEmbeddingProvider();
+  const embedder = new HashEmbeddingProvider(32, { semantic: true });
   const svc = new RetrievalService(repo, embedder);
   const add = async (type: "semantic" | "procedural" | "episodic", content: string, tags: string[] = []) => {
     const m = repo.create({ userId: "local", type, content, tags });
@@ -44,7 +44,7 @@ describe("RetrievalService", () => {
 
   it("since/until filter on event time, not write time", async () => {
     const { repo, svc } = await seeded();
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     // Written now, but the fact dates from a year ago (backdated import).
     const lastYear = new Date(Date.now() - 365 * 24 * 3600 * 1000).toISOString();
     const backdated = repo.create({
@@ -97,7 +97,7 @@ describe("RetrievalService", () => {
 
   it("retrieve touches lastAccessedAt on returned memories", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const svc = new RetrievalService(repo, embedder);
     const m = repo.create({ userId: "local", type: "semantic", content: "user prefers typescript" });
     const [v] = await embedder.embed([m.content]);
@@ -111,7 +111,7 @@ describe("RetrievalService", () => {
 describe("digest", () => {
   it("puts pinned first, then by importance, capped at maxItems, excluding working", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+    const svc = new RetrievalService(repo, new HashEmbeddingProvider(32, { semantic: true }));
     repo.create({ userId: "local", type: "semantic", content: "high importance fact", importance: 0.9 });
     repo.create({ userId: "local", type: "semantic", content: "low importance fact", importance: 0.1 });
     const pinned = repo.create({
@@ -133,7 +133,7 @@ describe("digest", () => {
 describe("digest edge cases", () => {
   it("empty store returns empty items and text", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+    const svc = new RetrievalService(repo, new HashEmbeddingProvider(32, { semantic: true }));
     const d = svc.digest("local");
     assert.deepEqual(d.items, []);
     assert.equal(d.text, "");
@@ -142,7 +142,7 @@ describe("digest edge cases", () => {
 
   it("excludes non-active memories even when pinned", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+    const svc = new RetrievalService(repo, new HashEmbeddingProvider(32, { semantic: true }));
     const pinned = repo.create({
       userId: "local", type: "semantic", content: "pinned but stale",
       retention: { mode: "pinned", pinReason: "test" },
@@ -158,7 +158,7 @@ describe("digest edge cases", () => {
 
   it("never cuts pinned memories, even past maxItems, deterministically", () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const svc = new RetrievalService(repo, new HashEmbeddingProvider());
+    const svc = new RetrievalService(repo, new HashEmbeddingProvider(32, { semantic: true }));
     for (let i = 0; i < 4; i++) {
       repo.create({
         userId: "local", type: "semantic", content: `pinned fact ${i}`,
@@ -216,7 +216,7 @@ describe("touch-on-retrieve affects ranking", () => {
     const dir = mkdtempSync(join(tmpdir(), "synapse-test-"));
     const path = join(dir, "t.db");
     const repo = new MemoryRepository({ path });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const svc = new RetrievalService(repo, embedder);
 
     const write = async (content: string) => {
@@ -251,7 +251,7 @@ describe("touch-on-retrieve affects ranking", () => {
 describe("retrieve audit logging", () => {
   it("retrieve logs an audit event with query and stats", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const svc = new RetrievalService(repo, embedder);
     const m = repo.create({ userId: "local", type: "semantic", content: "test fact" });
     const [v] = await embedder.embed([m.content]);
@@ -271,7 +271,7 @@ describe("retrieve audit logging", () => {
 describe("rank-based group boost", () => {
   it("members of the best-ranked tag group get an ordinal boost; other groups do not", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const svc = new RetrievalService(repo, embedder);
     const add = async (content: string, tags: string[]) => {
       const m = repo.create({ userId: "local", type: "semantic", content, tags });
@@ -295,7 +295,7 @@ describe("rank-based group boost", () => {
 
   it("is inert when all candidates share one tag group (no uniform score shift)", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const svc = new RetrievalService(repo, embedder);
     for (const content of ["Roast chicken with thyme", "Chicken stock from bones"]) {
       const m = repo.create({ userId: "local", type: "semantic", content, tags: ["cooking"] });
@@ -312,7 +312,7 @@ describe("rank-based group boost", () => {
 describe("LLM rerank flag", () => {
   const seed = async (llm?: import("./jobs/llm.js").LlmClient) => {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const svc = new RetrievalService(repo, embedder, undefined, llm);
     const ids: string[] = [];
     for (const content of ["Roast chicken with garlic and thyme", "Chicken soup with garlic broth"]) {
@@ -363,6 +363,28 @@ describe("LLM rerank flag", () => {
   });
 });
 
+describe("RetrievalService with a non-semantic embedder", () => {
+  it("scores no vector term and only considers keyword hits as candidates", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = new HashEmbeddingProvider(); // semantic: false by default
+    const svc = new RetrievalService(repo, embedder);
+    const add = async (content: string) => {
+      const m = repo.create({ userId: "local", type: "semantic", content });
+      const [v] = await embedder.embed([content]);
+      if (v) repo.saveEmbedding(m.id, v, embedder.model);
+      return m;
+    };
+    const hit = await add("User prefers TypeScript for backend work");
+    // Hash-similar shape, zero keyword overlap with the query — must not surface.
+    const noise = await add("Ordered a tuna sandwich on Tuesday");
+    const res = await svc.retrieve({ query: "typescript preference", userId: "local", limit: 5 });
+    assert.ok(res.memories.some((m) => m.id === hit.id));
+    assert.ok(!res.memories.some((m) => m.id === noise.id), "non-matching memory must not be a candidate");
+    assert.equal(res.memories[0]?.scoreBreakdown?.vector, 0, "vector term must contribute nothing");
+    repo.close();
+  });
+});
+
 describe("RetrievalService question-time anchoring", () => {
   // Measured on LongMemEval: 7 of 169 dev questions retrieved literally zero
   // memories and abstained. Cause: retrieve() called parseTimeWindow(query)
@@ -372,7 +394,7 @@ describe("RetrievalService question-time anchoring", () => {
   // before scoring — emptied the pool.
   async function dated() {
     const repo = new MemoryRepository({ path: ":memory:" });
-    const embedder = new HashEmbeddingProvider();
+    const embedder = new HashEmbeddingProvider(32, { semantic: true });
     const svc = new RetrievalService(repo, embedder);
     const add = async (content: string, observedAt: string) => {
       const m = repo.create({

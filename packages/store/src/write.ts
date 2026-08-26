@@ -27,8 +27,11 @@ export type WriteOutcome = WriteResult | SecretRejection;
  * Single write path: exact content-hash dedup + entityKey supersession
  * (createWithEntitySupersede), then semantic dedup against active memories of
  * the same user+type — cosine >= 0.95 returns the existing memory, 0.92–0.95
- * absorbs into it (touch + tag union). Skipped when entityKey is set, since
- * supersession is the intended resolution there.
+ * absorbs into it (touch + tag union). Semantic dedup is skipped when:
+ * - entityKey is set (supersession is the intended resolution),
+ * - the embedder is non-semantic (hash vectors would mis-merge unrelated text),
+ * - type is episodic (distinct events legitimately read near-identical — cron
+ *   run logs must all survive; exact content-hash dedup still applies).
  */
 export async function writeMemory(
   repo: MemoryRepository,
@@ -53,7 +56,7 @@ export async function writeMemory(
   const userId = input.userId ?? "local";
   const [vec] = await embedder.embed([input.content]);
 
-  if (!input.entityKey && vec) {
+  if (!input.entityKey && vec && embedder.semantic !== false && input.type !== "episodic") {
     const exact = repo.findActiveByContentHash(userId, input.type, input.content);
     if (!exact) {
       const candidates = repo

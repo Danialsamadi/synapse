@@ -128,11 +128,18 @@ export class RetrievalService {
       return true;
     });
 
-    const [queryVec] = await this.embedder.embed([req.query]);
+    // Non-semantic embedder (hash): similarities would be noise. Skip the
+    // query embed, contribute 0 to every vector term, and let candidacy come
+    // from keyword search alone — FTS5 + importance/recency/confidence carry
+    // the ranking.
+    const semantic = this.embedder.semantic !== false;
+    const [queryVec] = semantic ? await this.embedder.embed([req.query]) : [undefined];
     // ponytail: linear scan over all eligible vectors — fine at personal scale
     // (thousands); the B′ union below saves scoring work, not scan work. Swap
     // the vector side to a sqlite-vec index if retrieval latency ever matters.
-    const vectors = this.repo.getEmbeddings(eligible.map((m) => m.id));
+    const vectors = semantic
+      ? this.repo.getEmbeddings(eligible.map((m) => m.id))
+      : new Map<string, number[]>();
     // (clock hoisted above — recency and decay use the same `now` as the window)
     const sims = new Map<string, number>();
     for (const m of eligible) {
@@ -150,6 +157,8 @@ export class RetrievalService {
     let candidates: Memory[];
     if (keywordRanks === null) {
       candidates = eligible; // FTS broken → legacy full scan, substring keyword below
+    } else if (!semantic) {
+      candidates = eligible.filter((m) => keywordRanks.has(m.id));
     } else {
       const K = Math.max(req.limit * 4, 40);
       const topK = new Set(

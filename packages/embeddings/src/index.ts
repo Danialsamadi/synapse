@@ -1,15 +1,25 @@
 export interface EmbeddingProvider {
   readonly model: string;
+  /**
+   * Whether vectors from this provider carry meaning. Undefined = true (real
+   * providers). When false, retrieval must not rank by vector similarity and
+   * write-time semantic dedup must not run — the scores would be noise.
+   */
+  readonly semantic?: boolean;
   embed(texts: string[]): Promise<number[][]>;
 }
 
-/** Deterministic fake embeddings for tests / offline Day 1–5. */
+/** Deterministic char-frequency embeddings: zero deps, zero network — and zero
+ *  semantics. Non-semantic by default; tests that use it as a stand-in for a
+ *  real model pass `{ semantic: true }` to opt back into vector ranking. */
 export class HashEmbeddingProvider implements EmbeddingProvider {
   readonly model = "hash-embed-v0";
+  readonly semantic: boolean;
   private readonly dims: number;
 
-  constructor(dims = 32) {
+  constructor(dims = 32, opts: { semantic?: boolean } = {}) {
     this.dims = dims;
+    this.semantic = opts.semantic ?? false;
   }
 
   async embed(texts: string[]): Promise<number[][]> {

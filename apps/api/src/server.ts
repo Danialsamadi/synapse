@@ -68,7 +68,12 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
     });
   }
 
-  app.get("/health", (c) => c.json({ ok: true, service: "synapse-api" }));
+  app.get("/health", (c) =>
+    c.json({
+      ok: true,
+      service: "synapse-api",
+      embeddings: { model: embedder.model, semantic: embedder.semantic !== false },
+    }));
 
   app.post("/v1/memories", async (c) => {
     const json: unknown = await c.req.json();
@@ -366,9 +371,9 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
 
 // Default startup behavior
 if (process.argv[1] && process.argv[1].endsWith("server.ts")) {
-  // Real semantic embeddings by default when run as a server; tests that
-  // import createServer() directly keep the fast hash provider.
-  process.env.SYNAPSE_EMBED_PROVIDER ??= "local";
+  // Provider selection is shared with the CLI/MCP (see loadEmbeddingConfig):
+  // explicit SYNAPSE_EMBED_PROVIDER wins, a configured key/base URL implies
+  // openai, otherwise hash with a startup warning.
   createServer().then((server) => {
     const port = Number(process.env.PORT ?? 8787);
     console.log(`synapse-api listening on http://localhost:${port}`);
