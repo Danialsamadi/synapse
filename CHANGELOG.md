@@ -5,6 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+### Added
+- Dedup/absorb audit events now record the discarded incoming content
+  (`droppedContent`) — a false-positive merge is recoverable from the audit log
+  instead of being silent data loss (field incident on a stale pre-0.4.0 server).
+- MCP server stamps a `startup` audit event with its running version, so a
+  long-lived pre-upgrade process is diagnosable from the DB.
+- Hermes guide: upgrade/restart procedure for long-lived MCP processes, and a
+  CLI-vs-MCP disagreement checklist (version skew, `SYNAPSE_DB` divergence,
+  hash-mode candidacy). Verified and documented that SQLite WAL is *not*
+  eventually consistent — readers always see committed writes.
+- OpenAI-compatible embedder: a 404/405 from `/embeddings` now hints that the
+  base URL is likely a chat-only router and points at embeddings-capable
+  endpoints (field report: LLM routers commonly lack `/embeddings`).
+
 ## [0.4.0] - 2026-08-26
 
 ### Added

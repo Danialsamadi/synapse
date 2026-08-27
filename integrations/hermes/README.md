@@ -80,6 +80,32 @@ Episodic writes are exempt from semantic dedup/absorb — near-identical run lin
 
 Wire "that's outdated" replies to `memory_feedback`: `{ "id": "<memory id from retrieve>", "verdict": "stale" }` — lowers confidence, disputes the memory, and hides it from default retrieval. `helpful` does the reverse.
 
+## Upgrades: restart long-lived MCP processes
+
+Hosts that spawn `npx -y synapse-os` per session pick up upgrades automatically. Gateway/watchdog hosts that keep one MCP process alive for days do **not** — the old code keeps serving until the process restarts. Field incident: a pre-0.4.0 process kept absorbing writes with hash-vector dedup for a day after the 0.4.0 upgrade. After upgrading: restart the synapse MCP process (or the gateway).
+
+To check which version is actually serving, read the newest `startup` audit row:
+
+```bash
+sqlite3 "file:/root/.synapse/synapse.db?mode=ro" \
+  "SELECT detail, created_at FROM audit_log WHERE action='startup' ORDER BY created_at DESC LIMIT 1"
+```
+
+## If the CLI and the MCP server seem to disagree
+
+SQLite WAL is **not** eventually consistent — any reader sees all committed writes immediately, including uncheckpointed ones (verified with a live writer holding the DB open). If the two paths return different results, the cause is one of:
+
+1. **Version skew** — a stale pre-upgrade MCP process (check the `startup` audit above). Old versions also had different retrieval candidacy, so the *same query* can return different results across versions.
+2. **Different databases** — `SYNAPSE_DB` set in the MCP `env:` but not in your shell (or vice versa); each path silently uses its own file. Compare paths first.
+3. **Hash-mode candidacy** — in hash mode, `query` only surfaces memories with FTS keyword overlap; `list` shows everything. A memory "missing" from a query but present in `list` is a wording mismatch, not a storage problem.
+
+If a write "disappeared", check the dedup/absorb audit rows — since 0.4.1 they carry the discarded content (`droppedContent`), so a false-positive merge is recoverable:
+
+```bash
+sqlite3 "file:/root/.synapse/synapse.db?mode=ro" \
+  "SELECT detail FROM audit_log WHERE action IN ('dedup','absorb') ORDER BY created_at DESC LIMIT 5"
+```
+
 ## Inspecting the DB while the gateway holds it
 
 The DB is WAL-mode — concurrent readers are safe: `synapse-os list`, `synapse-os export`, or read-only SQL from any process allowed to run it:

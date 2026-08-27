@@ -23,6 +23,10 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
   // PKG_VERSION is injected by tsup at build time from package.json.
   const server = new McpServer({ name: "synapse", version: process.env.PKG_VERSION ?? "0.0.0-dev" });
 
+  // Version stamp: long-lived hosts can keep a pre-upgrade process serving for
+  // days — this audit row is how a CLI or SQL reader detects the skew.
+  repo.addAudit("startup", JSON.stringify({ version: process.env.PKG_VERSION ?? "0.0.0-dev" }));
+
   // The MCP path is the flagship install and has no job runner: sweep once at
   // startup so TTL expiry, decay archival, and the confidence floor actually
   // run for npx-only users.
