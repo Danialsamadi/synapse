@@ -5,6 +5,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-27
+
 ### Added
 - Dedup/absorb audit events now record the discarded incoming content
   (`droppedContent`) — a false-positive merge is recoverable from the audit log
