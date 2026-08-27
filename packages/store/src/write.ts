@@ -72,14 +72,16 @@ export async function writeMemory(
       }
       if (best && best.sim >= DEDUP_REJECT_THRESHOLD) {
         repo.touchAccessed([best.memory.id]);
-        repo.addAudit("dedup", JSON.stringify({ keptId: best.memory.id, sim: best.sim }));
+        // droppedContent: a false-positive dedup discards the incoming write —
+        // the audit row is the only place it can be recovered from.
+        repo.addAudit("dedup", JSON.stringify({ keptId: best.memory.id, sim: best.sim, droppedContent: input.content }));
         return { memory: best.memory, supersededIds: [], deduped: true };
       }
       if (best && best.sim >= DEDUP_ABSORB_THRESHOLD) {
         const tags = [...new Set([...best.memory.tags, ...(input.tags ?? [])])];
         const updated = repo.update(best.memory.id, { tags }) ?? best.memory;
         repo.touchAccessed([updated.id]);
-        repo.addAudit("absorb", JSON.stringify({ keptId: updated.id, sim: best.sim }));
+        repo.addAudit("absorb", JSON.stringify({ keptId: updated.id, sim: best.sim, droppedContent: input.content }));
         return { memory: updated, supersededIds: [], deduped: true, absorbed: true };
       }
     }

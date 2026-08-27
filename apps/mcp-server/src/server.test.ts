@@ -15,6 +15,15 @@ async function connected() {
 }
 
 describe("synapse MCP server", () => {
+  it("stamps a startup audit with the running version, so stale processes are diagnosable", async () => {
+    const { repo } = await connected();
+    const events = repo.listAudit("startup");
+    assert.equal(events.length, 1);
+    const detail = JSON.parse(events[0]!.detail) as { version: string };
+    assert.ok(typeof detail.version === "string" && detail.version.length > 0);
+    repo.close();
+  });
+
   it("lists both memory tools", async () => {
     const { repo, client } = await connected();
     const { tools } = await client.listTools();

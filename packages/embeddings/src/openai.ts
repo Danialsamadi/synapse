@@ -29,7 +29,14 @@ export class OpenAiEmbeddingProvider implements EmbeddingProvider {
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      throw new Error(`OpenAI embedding request failed (${res.status}): ${body}`);
+      // 404/405 on /embeddings usually means the base URL is a chat-only
+      // router/proxy — steer to an endpoint that actually serves embeddings.
+      const hint =
+        res.status === 404 || res.status === 405
+          ? " Hint: this base URL may not serve /embeddings (chat-completion routers don't). " +
+            "Point SYNAPSE_EMBED_BASE_URL at an embeddings-capable endpoint (e.g. Ollama: http://localhost:11434/v1 with SYNAPSE_EMBED_MODEL=nomic-embed-text)."
+          : "";
+      throw new Error(`OpenAI embedding request failed (${res.status}): ${body}${hint}`);
     }
     const data = (await res.json()) as { data: { embedding: number[]; index: number }[] };
     return data.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);

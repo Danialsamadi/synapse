@@ -79,6 +79,22 @@ describe("writeMemory semantic dedup", () => {
     assert.equal(repo.getEmbeddings([res.memory.id]).size, 1);
   });
 
+  it("audits the discarded content on dedup and absorb, so a false positive is recoverable", async () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const embedder = fakeEmbedder({
+      a: [1, 0, 0],
+      "absorbed away": [0.93, Math.sqrt(1 - 0.93 * 0.93), 0], // absorb band
+      "deduped away": [0.99, 0.141, 0], // reject band
+    });
+    await writeMemory(repo, embedder, { userId: "local", type: "semantic", content: "a" });
+    await writeMemory(repo, embedder, { userId: "local", type: "semantic", content: "absorbed away" });
+    await writeMemory(repo, embedder, { userId: "local", type: "semantic", content: "deduped away" });
+    const absorb = JSON.parse(repo.listAudit("absorb")[0]!.detail);
+    const dedup = JSON.parse(repo.listAudit("dedup")[0]!.detail);
+    assert.equal(absorb.droppedContent, "absorbed away");
+    assert.equal(dedup.droppedContent, "deduped away");
+  });
+
   it("never absorbs episodic memories: distinct run logs both survive even at cosine 0.99", async () => {
     const repo = new MemoryRepository({ path: ":memory:" });
     const embedder = fakeEmbedder({
