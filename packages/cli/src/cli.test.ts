@@ -34,6 +34,30 @@ describe("runCli", () => {
     assert.ok(res.memories.some((m: { content: string }) => m.content.includes("TypeScript")));
   });
 
+  it("restore refuses while another connection holds the DB (stranding guard)", async () => {
+    await runCli(["remember", "semantic", "original fact before restore"]);
+    const backup = join(dir, "backup.db");
+    await runCli(["backup", backup]);
+
+    const { default: Database } = await import("better-sqlite3");
+    const holder = new Database(process.env.SYNAPSE_DB!); // simulates a running MCP server
+    holder.pragma("journal_mode = WAL");
+    try {
+      logs.length = 0;
+      await runCli(["restore", backup, "--force"]);
+      assert.equal(process.exitCode, 1, "restore must refuse under a live holder");
+      assert.ok(!logs.join("\n").includes("Restored"), "must not report success");
+    } finally {
+      process.exitCode = 0;
+      holder.close();
+    }
+
+    // Holder gone → the same restore succeeds.
+    logs.length = 0;
+    await runCli(["restore", backup, "--force"]);
+    assert.ok(logs.join("\n").includes("Restored"));
+  });
+
   it("export lists what remember stored", async () => {
     await runCli(["remember", "procedural", "Always run tests before committing"]);
     logs.length = 0;
