@@ -42,8 +42,31 @@ export async function runCli(argv: string[]): Promise<void> {
       console.error(`This overwrites ${dbPath()}. Re-run with --force to confirm.`);
       process.exit(1);
     }
-    const { copyFileSync, rmSync } = await import("node:fs");
+    const { copyFileSync, rmSync, existsSync } = await import("node:fs");
     const target = dbPath();
+    // Stranding guard: a live holder (running MCP server/gateway) keeps its open
+    // handle after the copy — its writes diverge from the restored file. Probe:
+    // leaving WAL mode needs exclusive access, so it fails iff a holder exists.
+    if (existsSync(target)) {
+      const { default: Database } = await import("better-sqlite3");
+      let live = false;
+      const probe = new Database(target, { timeout: 200 });
+      try {
+        live = probe.pragma("journal_mode = delete", { simple: true }) !== "delete";
+      } catch {
+        live = true; // SQLITE_BUSY → someone holds it
+      } finally {
+        probe.close();
+      }
+      if (live) {
+        console.error(
+          `${target} is open in another process (a running synapse MCP server or gateway). ` +
+            "Restoring under a live holder strands its writes — stop that process, then re-run restore.",
+        );
+        process.exitCode = 1;
+        return;
+      }
+    }
     rmSync(`${target}-wal`, { force: true });
     rmSync(`${target}-shm`, { force: true });
     copyFileSync(src, target);

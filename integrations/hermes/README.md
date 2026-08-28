@@ -99,6 +99,8 @@ SQLite WAL is **not** eventually consistent — any reader sees all committed wr
 2. **Different databases** — `SYNAPSE_DB` set in the MCP `env:` but not in your shell (or vice versa); each path silently uses its own file. Compare paths first.
 3. **Hash-mode candidacy** — in hash mode, `query` only surfaces memories with FTS keyword overlap; `list` shows everything. A memory "missing" from a query but present in `list` is a wording mismatch, not a storage problem.
 
+**Restore needs the server stopped.** `synapse-os restore` refuses while a running MCP server/gateway holds the database — restoring under a live holder strands that process's writes on the old file. Stop the gateway (or the synapse child process), restore, then start it again.
+
 If a write "disappeared", check the dedup/absorb audit rows — since 0.4.1 they carry the discarded content (`droppedContent`), so a false-positive merge is recoverable:
 
 ```bash

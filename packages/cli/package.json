@@ -19,10 +19,12 @@
   },
   "dependencies": {
     "@synapse/core": "workspace:*",
+    "@synapse/embeddings": "workspace:*",
     "@synapse/store": "workspace:*",
-    "@synapse/embeddings": "workspace:*"
+    "better-sqlite3": "^12.11.1"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+### Added
+- Restore stranding guard: `synapse-os restore` now refuses while another
+  process holds the database (probe: leaving WAL mode requires exclusive
+  access). Restoring under a live MCP server stranded its writes on the old
+  file — field incident. Stop the server, restore, restart.
+
 ## [0.4.1] - 2026-08-27
 
 ### Added
