@@ -5,7 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-30
+
 ### Added
+- `synapse-os decay` CLI command: runs the same TTL-expiry/decay-archival
+  sweep the MCP server does at startup, with a matching audit row (trigger
+  `cli`). Lets cron purge stale run logs on hosts where no long-lived
+  gateway/MCP process is around to do it (48h field report: decay never ran
+  while the gateway was down).
 - Restore stranding guard: `synapse-os restore` now refuses while another
   process holds the database (probe: leaving WAL mode requires exclusive
   access). Restoring under a live MCP server stranded its writes on the old
