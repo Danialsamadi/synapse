@@ -58,6 +58,24 @@ describe("runCli", () => {
     assert.ok(logs.join("\n").includes("Restored"));
   });
 
+  it("decay sweeps expired memories without a live MCP server", async () => {
+    const { MemoryRepository } = await import("@synapse/store");
+    const repo = new MemoryRepository({ path: process.env.SYNAPSE_DB! });
+    const stale = repo.create({
+      userId: "local", type: "working", content: "task from last week",
+      retention: { mode: "ttl", expiresAt: new Date(Date.now() - 1000).toISOString() },
+    });
+    repo.close();
+
+    await runCli(["decay"]);
+    const res = JSON.parse(logs.join("\n"));
+    assert.equal(res.expired, 1);
+
+    logs.length = 0;
+    await runCli(["get", stale.id]);
+    assert.equal(JSON.parse(logs.join("\n")).status, "archived");
+  });
+
   it("export lists what remember stored", async () => {
     await runCli(["remember", "procedural", "Always run tests before committing"]);
     logs.length = 0;

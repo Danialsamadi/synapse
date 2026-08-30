@@ -1,5 +1,5 @@
 import { MemoryTypeSchema, resolveDbPath } from "@synapse/core";
-import { MemoryRepository, RetrievalService, createEmbedder, reembedAll, writeMemory } from "@synapse/store";
+import { MemoryRepository, RetrievalService, createEmbedder, reembedAll, runDecay, writeMemory } from "@synapse/store";
 import { splitIntoMemories } from "./import.js";
 
 const dbPath = resolveDbPath;
@@ -15,6 +15,7 @@ Usage:
   synapse query <text...> [--type <type>] [--tags <tag1,tag2>]
   synapse export
   synapse reembed              (after switching embedding provider/model)
+  synapse decay                (sweep TTL expiry / decay archival, no server needed)
   synapse backup [dest]
   synapse restore <src> --force
   synapse delete <id>
@@ -209,6 +210,16 @@ export async function runCli(argv: string[]): Promise<void> {
           if (done % 128 === 0 || done === total) console.log(`  ${done}/${total}`);
         });
         console.log(`Done: ${reembedded} memories re-embedded.`);
+        break;
+      }
+      case "decay": {
+        // Same sweep the MCP server runs at startup — for hosts (cron, gateway
+        // down) where no long-lived server is around to do it.
+        const swept = runDecay(repo);
+        if (swept.archived + swept.expired > 0) {
+          repo.addAudit("job", JSON.stringify({ kind: "decay", trigger: "cli", ...swept }));
+        }
+        console.log(JSON.stringify(swept, null, 2));
         break;
       }
       case "backup": {
