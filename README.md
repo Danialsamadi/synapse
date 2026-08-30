@@ -139,6 +139,7 @@ npx -y synapse-os remember semantic "User prefers TypeScript"
 npx -y synapse-os query "typescript preference"
 npx -y synapse-os list / get / delete / import / export
 npx -y synapse-os reembed              # after switching embedding provider/model
+npx -y synapse-os decay                # TTL/decay sweep — for cron, no live server needed
 npx -y synapse-os backup [dest] / restore <src> --force
 ```
 
