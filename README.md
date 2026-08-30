@@ -18,7 +18,7 @@ flowchart TB
     subgraph Agents["Agents & Surfaces"]
         MCP["MCP clients<br/>Claude Code · Claude Desktop · Cursor · OpenCode"]
         SDK["SDK adapters<br/>Anthropic · OpenAI-compatible routers"]
-        CLI["CLI<br/>synapse remember / query / export"]
+        CLI["CLI<br/>synapse remember / query / export / decay"]
         UI["Inspector UI"]
     end
 
