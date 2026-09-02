@@ -177,7 +177,7 @@ describe("digest edge cases", () => {
 
 describe("qualifierFor", () => {
   const base = (over: Partial<Memory>): Memory => ({
-    id: "m1", userId: "local", type: "semantic", status: "active",
+    id: "m1", userId: "local", scope: "private", ownerId: "local", createdBy: "local", type: "semantic", status: "active",
     content: "x", importance: 0.5, confidence: 0.9, decayHalfLifeDays: 180,
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     sourceRefs: [], links: [], tags: [], retention: { mode: "default" },

@@ -451,3 +451,18 @@ describe("audit event logging", () => {
     repo.close();
   });
 });
+
+
+describe("multi-tenant visibility", () => {
+  it("isolates private memories and shares only with matching teams", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const privateA = repo.create({ userId: "user_a", ownerId: "user_a", createdBy: "user_a", scope: "private", type: "semantic", content: "A private fact" });
+    const team = repo.create({ userId: "user_a", ownerId: "user_a", createdBy: "user_a", scope: "team", teamId: "team_1", type: "semantic", content: "A team fact" });
+    assert.equal(repo.getVisible(privateA.id, "user_b", ["team_1"]), null);
+    assert.equal(repo.getVisible(privateA.id, "user_a", [] )?.content, "A private fact");
+    assert.equal(repo.getVisible(team.id, "user_b", ["team_1"])?.content, "A team fact");
+    assert.equal(repo.getVisible(team.id, "user_c", ["team_2"]), null);
+    assert.deepEqual(repo.listVisible("user_b", ["team_1"]).map((m) => m.content), ["A team fact"]);
+    repo.close();
+  });
+});

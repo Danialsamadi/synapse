@@ -3,6 +3,8 @@ import { z } from "zod";
 import { MemoryRepository, RetrievalService, createEmbedder, runDecay, writeMemory } from "@synapse/store";
 import { TOOL_MAX_IMPORTANCE } from "@synapse/sdk";
 
+export interface SynapsePrincipal { userId: string; teamIds: string[] }
+
 const json = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
 });
@@ -17,7 +19,7 @@ function humanizeWhen(iso: string, now = new Date()): string {
   return `${days} days ago (${iso.slice(0, 10)})`;
 }
 
-export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
+export function createSynapseMcpServer(repo: MemoryRepository, principal: SynapsePrincipal = { userId: "local", teamIds: [] }): McpServer {
   const embedder = createEmbedder();
   const retrieval = new RetrievalService(repo, embedder);
   // PKG_VERSION is injected by tsup at build time from package.json.
@@ -58,11 +60,20 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
           }))
           .optional()
           .describe("Structural edges to existing memories, e.g. part_of to link a chapter to its book."),
+        scope: z.enum(["private", "team"]).optional().default("private"),
+        teamId: z.string().min(1).optional(),
       },
     },
-    async ({ type, content, importance, tags, entityKey, occurredAt, links }) => {
+    async ({ type, content, importance, tags, entityKey, occurredAt, links, scope, teamId }) => {
+      if (scope === "team" && (!teamId || !principal.teamIds.includes(teamId))) {
+        return json({ error: "not_found" });
+      }
       const outcome = await writeMemory(repo, embedder, {
-        userId: "local",
+        userId: principal.userId,
+        ownerId: principal.userId,
+        createdBy: principal.userId,
+        scope,
+        ...(scope === "team" ? { teamId } : {}),
         type,
         content,
         source: "mcp",
@@ -116,7 +127,8 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
     async ({ query, limit, types, tags, minScore }) => {
       const result = await retrieval.retrieve({
         query,
-        userId: "local",
+        userId: principal.userId,
+        teamIds: principal.teamIds,
         limit: limit ?? 8,
         ...(types ? { types } : {}),
         ...(tags ? { tags } : {}),
@@ -147,7 +159,7 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
         tokenBudget: z.number().int().positive().optional(),
       },
     },
-    async ({ maxItems, tokenBudget }) => json(retrieval.digest("local", maxItems ?? 12, tokenBudget)),
+    async ({ maxItems, tokenBudget }) => json(retrieval.digest(principal.userId, maxItems ?? 12, tokenBudget, principal.teamIds)),
   );
 
   server.registerTool(
@@ -161,7 +173,8 @@ export function createSynapseMcpServer(repo: MemoryRepository): McpServer {
       },
     },
     async ({ id, verdict }) => {
-      const memory = repo.applyFeedback(id, verdict);
+      const visible = repo.getVisible(id, principal.userId, principal.teamIds);
+      const memory = visible ? repo.applyFeedback(id, verdict) : null;
       return memory ? json(memory) : json({ error: "not_found", id });
     },
   );

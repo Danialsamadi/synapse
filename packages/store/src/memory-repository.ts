@@ -6,6 +6,7 @@ import {
   type MemoryLink,
   type MemoryStatus,
   type MemoryType,
+  type MemoryScope,
   type UpdateMemoryInput,
   DEFAULT_HALF_LIFE_DAYS,
   DEFAULT_IMPORTANCE,
@@ -85,6 +86,10 @@ export class MemoryRepository {
     const memory: Memory = {
       id: newMemoryId(),
       userId: input.userId,
+      scope: input.scope ?? "private",
+      ownerId: input.ownerId ?? input.userId,
+      ...(input.teamId ? { teamId: input.teamId } : {}),
+      createdBy: input.createdBy ?? input.userId,
       type,
       status: "active",
       content: input.content,
@@ -107,12 +112,12 @@ export class MemoryRepository {
     this.db
       .prepare(
         `INSERT INTO memories (
-          id, user_id, type, status, content, structured_json,
+          id, user_id, scope, owner_id, team_id, created_by, type, status, content, structured_json,
           importance, confidence, decay_half_life_days, last_accessed_at,
           created_at, updated_at, source_refs_json, links_json, tags_json,
           retention_json, content_hash
         ) VALUES (
-          @id, @user_id, @type, @status, @content, @structured_json,
+          @id, @user_id, @scope, @owner_id, @team_id, @created_by, @type, @status, @content, @structured_json,
           @importance, @confidence, @decay_half_life_days, @last_accessed_at,
           @created_at, @updated_at, @source_refs_json, @links_json, @tags_json,
           @retention_json, @content_hash
@@ -156,6 +161,22 @@ export class MemoryRepository {
     sql += ` ORDER BY created_at DESC`;
     const rows = this.db.prepare(sql).all(...params) as Row[];
     return rows.map((r) => this.withLinks(fromRow(r)));
+  }
+
+  listVisible(userId: string, teamIds: string[], opts?: { status?: MemoryStatus; type?: MemoryType }): Memory[] {
+    const teams = teamIds.length ? teamIds.map(() => "?").join(",") : "NULL";
+    let sql = `SELECT * FROM memories WHERE ((scope = 'private' AND owner_id = ?) OR (scope = 'team' AND team_id IN (${teams})))`;
+    const params: unknown[] = [userId, ...teamIds];
+    if (opts?.status) { sql += " AND status = ?"; params.push(opts.status); }
+    if (opts?.type) { sql += " AND type = ?"; params.push(opts.type); }
+    sql += " ORDER BY created_at DESC";
+    return (this.db.prepare(sql).all(...params) as Row[]).map((r) => this.withLinks(fromRow(r)));
+  }
+
+  getVisible(id: string, userId: string, teamIds: string[]): Memory | null {
+    const teams = teamIds.length ? teamIds.map(() => "?").join(",") : "NULL";
+    const row = this.db.prepare(`SELECT * FROM memories WHERE id = ? AND ((scope = 'private' AND owner_id = ?) OR (scope = 'team' AND team_id IN (${teams})))`).get(id, userId, ...teamIds) as Row | undefined;
+    return row ? this.withLinks(fromRow(row)) : null;
   }
 
   softDelete(id: string): boolean {
@@ -573,6 +594,10 @@ export class MemoryRepository {
 interface Row {
   id: string;
   user_id: string;
+  scope: string;
+  owner_id: string;
+  team_id: string | null;
+  created_by: string;
   type: string;
   status: string;
   content: string;
@@ -611,6 +636,10 @@ function toRow(m: Memory, hash: string) {
   return {
     id: m.id,
     user_id: m.userId,
+    scope: m.scope,
+    owner_id: m.ownerId,
+    team_id: m.teamId ?? null,
+    created_by: m.createdBy,
     type: m.type,
     status: m.status,
     content: m.content,
@@ -636,6 +665,10 @@ function fromRow(row: Row): Memory {
   const memory: Memory = {
     id: row.id,
     userId: row.user_id,
+    scope: row.scope as MemoryScope,
+    ownerId: row.owner_id,
+    ...(row.team_id ? { teamId: row.team_id } : {}),
+    createdBy: row.created_by,
     type: row.type as Memory["type"],
     status: row.status as Memory["status"],
     content: row.content,
