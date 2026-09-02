@@ -1,6 +1,5 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { randomUUID } from "node:crypto";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { MemoryRepository } from "@synapse/store";
 import { resolveDbPath } from "@synapse/core";
@@ -43,7 +42,7 @@ export function createRemoteApp(repo = new MemoryRepository({ path: resolveDbPat
     if (c.req.method !== "POST" && c.req.method !== "GET" && c.req.method !== "DELETE") return c.json({ error: "method_not_allowed" }, 405);
     const principal = c.get("principal");
     const server = createSynapseMcpServer(repo, principal);
-    const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID(), enableJsonResponse: true });
+    const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     await server.connect(transport);
     const response = await transport.handleRequest(c.req.raw);
     return response;
