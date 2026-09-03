@@ -108,8 +108,17 @@ export const MIGRATION_V4 = `
 ALTER TABLE memories ADD COLUMN last_reinforced_at TEXT;
 `;
 
+export const MIGRATION_V5 = `
+ALTER TABLE memories ADD COLUMN scope TEXT NOT NULL DEFAULT 'private';
+ALTER TABLE memories ADD COLUMN owner_id TEXT NOT NULL DEFAULT 'local';
+ALTER TABLE memories ADD COLUMN team_id TEXT;
+ALTER TABLE memories ADD COLUMN created_by TEXT NOT NULL DEFAULT 'local';
+CREATE INDEX IF NOT EXISTS idx_memories_owner_scope ON memories(owner_id, scope, status);
+CREATE INDEX IF NOT EXISTS idx_memories_team_scope ON memories(team_id, scope, status);
+`;
+
 /** Ordered migrations; index+1 = schema version stored in PRAGMA user_version. */
-export const MIGRATIONS: readonly string[] = [MIGRATION_V1, MIGRATION_V2, MIGRATION_V3, MIGRATION_V4];
+export const MIGRATIONS: readonly string[] = [MIGRATION_V1, MIGRATION_V2, MIGRATION_V3, MIGRATION_V4, MIGRATION_V5];
 
 import type DatabaseType from "better-sqlite3";
 

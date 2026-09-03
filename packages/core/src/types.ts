@@ -17,6 +17,9 @@ export const MemoryStatusSchema = z.enum([
 ]);
 export type MemoryStatus = z.infer<typeof MemoryStatusSchema>;
 
+export const MemoryScopeSchema = z.enum(["private", "team"]);
+export type MemoryScope = z.infer<typeof MemoryScopeSchema>;
+
 export const SourceRefSchema = z.object({
   kind: z.enum(["message", "note", "file", "tool", "manual"]),
   id: z.string().min(1),
@@ -48,6 +51,10 @@ export type RetentionPolicy = z.infer<typeof RetentionPolicySchema>;
 export const MemorySchema = z.object({
   id: z.string().min(1),
   userId: z.string().min(1),
+  scope: MemoryScopeSchema.default("private"),
+  ownerId: z.string().min(1),
+  teamId: z.string().min(1).optional(),
+  createdBy: z.string().min(1),
   type: MemoryTypeSchema,
   status: MemoryStatusSchema,
   content: z.string().min(1),
@@ -69,6 +76,10 @@ export type Memory = z.infer<typeof MemorySchema>;
 
 export const CreateMemoryInputSchema = z.object({
   userId: z.string().min(1).optional().default("local"),
+  scope: MemoryScopeSchema.optional(),
+  ownerId: z.string().min(1).optional(),
+  teamId: z.string().min(1).optional(),
+  createdBy: z.string().min(1).optional(),
   type: MemoryTypeSchema,
   content: z.string().min(1),
   structured: z.record(z.unknown()).optional(),
@@ -99,6 +110,7 @@ export const RetrieveRequestSchema = z.object({
   /** Optional LLM rerank of the top hits; falls back to hybrid order on any failure. */
   rerank: z.boolean().optional(),
   userId: z.string().min(1).optional().default("local"),
+  teamIds: z.array(z.string().min(1)).optional(),
   types: z.array(MemoryTypeSchema).optional(),
   tags: z.array(z.string()).optional(),
   limit: z.number().int().positive().max(50).default(8),

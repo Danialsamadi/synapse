@@ -32,6 +32,7 @@ export class RetrievalService {
     userId: string,
     maxItems = 12,
     tokenBudget?: number,
+    teamIds: string[] = [],
   ): {
     items: Array<{ id: string; type: Memory["type"]; content: string }>;
     text: string;
@@ -39,7 +40,7 @@ export class RetrievalService {
     truncated: boolean;
   } {
     const active = this.repo
-      .list(userId, { status: "active" })
+      .listVisible(userId, teamIds, { status: "active" })
       .filter((m) => m.type !== "working");
     const pinned = active.filter((m) => m.retention.mode === "pinned");
     const rest = active
@@ -109,8 +110,8 @@ export class RetrievalService {
     if (req.since === undefined && req.until === undefined) {
       req = { ...req, ...parseTimeWindow(req.query, now) };
     }
-    const active = this.repo.list(req.userId, { status: "active" });
-    const disputed = req.includeDisputed ? this.repo.list(req.userId, { status: "disputed" }) : [];
+    const active = this.repo.listVisible(req.userId, req.teamIds ?? [], { status: "active" });
+    const disputed = req.includeDisputed ? this.repo.listVisible(req.userId, req.teamIds ?? [], { status: "disputed" }) : [];
     // No empty-pool fallback on purpose. An empty window used to mean "the clock
     // was wrong" (measured: 7 LongMemEval questions resolved their window into
     // the current year and retrieved nothing) — fixed above by anchoring to
@@ -221,7 +222,7 @@ export class RetrievalService {
       for (const { memory: m, score } of topScored) {
         for (const l of m.links) {
           if (!EXPAND_RELS.has(l.rel) || seen.has(l.targetId)) continue;
-          const neighbor = this.repo.get(l.targetId);
+          const neighbor = this.repo.getVisible(l.targetId, req.userId, req.teamIds ?? []);
           if (!neighbor || neighbor.status !== "active") continue;
           seen.add(neighbor.id);
           const linkScore = score * 0.5;

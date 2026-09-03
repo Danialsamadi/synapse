@@ -60,7 +60,7 @@ export async function writeMemory(
     const exact = repo.findActiveByContentHash(userId, input.type, input.content);
     if (!exact) {
       const candidates = repo
-        .list(userId, { status: "active" })
+        .listVisible(userId, (input as CreateMemoryInput & { teamIds?: string[] }).teamIds ?? [], { status: "active" })
         .filter((m) => m.type === input.type);
       const vectors = repo.getEmbeddings(candidates.map((m) => m.id));
       let best: { memory: Memory; sim: number } | null = null;
