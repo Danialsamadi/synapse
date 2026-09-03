@@ -1,10 +1,12 @@
 {
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
+  "build": {
+    "builder": "DOCKERFILE"
+  },
   "deploy": {
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 10
+    "healthcheckTimeout": 10,
+    "startCommand": "node apps/mcp-server/dist/remote.js"
   }
 }
