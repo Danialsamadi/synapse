@@ -273,6 +273,22 @@ export class MemoryRepository {
     return { memory, supersededIds: prior.map((m) => m.id), deduped: !!existing };
   }
 
+  /**
+   * Manual conflict resolution: winner → active, loser → superseded, linked
+   * winner supersedes loser, in one transaction. Returns null without writing
+   * anything when the ids are equal or either memory is missing.
+   */
+  resolveConflict(winnerId: string, loserId: string): { winner: Memory; loser: Memory } | null {
+    if (winnerId === loserId) return null;
+    return this.db.transaction(() => {
+      if (!this.get(winnerId) || !this.get(loserId)) return null;
+      const winner = this.update(winnerId, { status: "active" })!;
+      const loser = this.update(loserId, { status: "superseded" })!;
+      this.addLink(winnerId, loserId, "supersedes");
+      return { winner, loser };
+    })();
+  }
+
   private withLinks(m: Memory): Memory {
     // Rel direction is from → to. Incoming links only apply for symmetric
     // rels; reversing asymmetric ones like `supersedes` would misstate them.

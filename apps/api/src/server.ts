@@ -193,12 +193,12 @@ export async function createServer(repo?: MemoryRepository, opts?: { port?: numb
   });
 
   app.post("/v1/conflicts/resolve", async (c) => {
-    const body = z.object({ winnerId: z.string(), loserId: z.string() }).parse(await c.req.json());
-    const winner = repository.update(body.winnerId, { status: "active" });
-    const loser = repository.update(body.loserId, { status: "superseded" });
-    if (!winner || !loser) return c.json({ error: "not_found" }, 404);
-    repository.addLink(winner.id, loser.id, "supersedes");
-    return c.json({ winner, loser });
+    const body = z.object({ winnerId: z.string(), loserId: z.string() })
+      .refine((b) => b.winnerId !== b.loserId, { message: "winnerId and loserId must differ" })
+      .parse(await c.req.json());
+    const resolved = repository.resolveConflict(body.winnerId, body.loserId);
+    if (!resolved) return c.json({ error: "not_found" }, 404);
+    return c.json(resolved);
   });
 
   app.post("/v1/links", async (c) => {
