@@ -451,3 +451,59 @@ describe("audit event logging", () => {
     repo.close();
   });
 });
+
+describe("resolveConflict", () => {
+  const disputedPair = (repo: MemoryRepository) => {
+    const a = repo.create({ userId: "local", type: "semantic", content: "lives in Toronto" });
+    const b = repo.create({ userId: "local", type: "semantic", content: "lives in Vancouver" });
+    repo.update(a.id, { status: "disputed" });
+    repo.update(b.id, { status: "disputed" });
+    return { a, b };
+  };
+
+  it("activates the winner, supersedes the loser and links them", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const { a, b } = disputedPair(repo);
+    const out = repo.resolveConflict(a.id, b.id);
+    assert.equal(out?.winner.status, "active");
+    assert.equal(out?.loser.status, "superseded");
+    assert.deepEqual(repo.getLinks(a.id), [{ fromId: a.id, toId: b.id, rel: "supersedes" }]);
+    repo.close();
+  });
+
+  it("unknown loser: returns null and leaves the winner untouched", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const { a } = disputedPair(repo);
+    assert.equal(repo.resolveConflict(a.id, "nope"), null);
+    assert.equal(repo.get(a.id)?.status, "disputed");
+    assert.deepEqual(repo.getLinks(a.id), []);
+    repo.close();
+  });
+
+  it("unknown winner: returns null and leaves the loser untouched", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const { b } = disputedPair(repo);
+    assert.equal(repo.resolveConflict("nope", b.id), null);
+    assert.equal(repo.get(b.id)?.status, "disputed");
+    repo.close();
+  });
+
+  it("same id: returns null and writes nothing", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const { a } = disputedPair(repo);
+    assert.equal(repo.resolveConflict(a.id, a.id), null);
+    assert.equal(repo.get(a.id)?.status, "disputed");
+    assert.deepEqual(repo.getLinks(a.id), []);
+    repo.close();
+  });
+
+  it("is atomic: a failed link write rolls back both status changes", () => {
+    const repo = new MemoryRepository({ path: ":memory:" });
+    const { a, b } = disputedPair(repo);
+    repo.addLink = () => { throw new Error("disk full"); };
+    assert.throws(() => repo.resolveConflict(a.id, b.id), /disk full/);
+    assert.equal(repo.get(a.id)?.status, "disputed");
+    assert.equal(repo.get(b.id)?.status, "disputed");
+    repo.close();
+  });
+});

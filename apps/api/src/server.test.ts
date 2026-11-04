@@ -238,3 +238,50 @@ describe("POST /v1/feedback", () => {
     assert.equal(missing.status, 404);
   });
 });
+
+describe("POST /v1/conflicts/resolve", () => {
+  const resolve = (body: unknown) => fetch(`${baseUrl}/v1/conflicts/resolve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const disputed = (content: string) => {
+    const m = repo.create({ userId: "local", type: "semantic", content });
+    return repo.update(m.id, { status: "disputed" })!;
+  };
+
+  it("activates the winner and supersedes the loser", async () => {
+    const w = disputed("resolve winner fact");
+    const l = disputed("resolve loser fact");
+    const res = await resolve({ winnerId: w.id, loserId: l.id });
+    assert.equal(res.status, 200);
+    const body = await res.json() as { winner: { status: string }; loser: { status: string } };
+    assert.equal(body.winner.status, "active");
+    assert.equal(body.loser.status, "superseded");
+    assert.ok(repo.getLinks(w.id).some((x) => x.rel === "supersedes" && x.toId === l.id));
+  });
+
+  it("unknown loserId → 404 and the winner is left unchanged", async () => {
+    const w = disputed("orphan winner fact");
+    const res = await resolve({ winnerId: w.id, loserId: "nope" });
+    assert.equal(res.status, 404);
+    assert.deepEqual(await res.json(), { error: "not_found" });
+    assert.equal(repo.get(w.id)?.status, "disputed");
+    assert.deepEqual(repo.getLinks(w.id), []);
+  });
+
+  it("unknown winnerId → 404 and the loser is left unchanged", async () => {
+    const l = disputed("orphan loser fact");
+    const res = await resolve({ winnerId: "nope", loserId: l.id });
+    assert.equal(res.status, 404);
+    assert.equal(repo.get(l.id)?.status, "disputed");
+  });
+
+  it("winnerId === loserId → 400, no status change, no self-link", async () => {
+    const m = disputed("self resolve fact");
+    const res = await resolve({ winnerId: m.id, loserId: m.id });
+    assert.equal(res.status, 400);
+    assert.equal(repo.get(m.id)?.status, "disputed");
+    assert.deepEqual(repo.getLinks(m.id), []);
+  });
+});
